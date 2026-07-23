@@ -33,3 +33,4 @@ go.work.sum
 
 poetrade47.AppDir/*
 *.AppImage
+build/*

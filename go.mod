@@ -9,6 +9,7 @@ require (
 )
 
 require (
+	fyne.io/fyne v1.4.3
 	fyne.io/systray v1.12.2 // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/anthonynsimon/bild v0.14.0 // indirect

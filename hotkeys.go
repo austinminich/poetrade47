@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
-	"fyne.io/fyne/v2"
 	"github.com/go-vgo/robotgo"
-	"github.com/robotn/gohook"
+	hook "github.com/robotn/gohook"
 )
 
 const (
@@ -16,6 +17,10 @@ const (
 	ModAlt   = "alt"
 )
 
+var (
+	modMu         sync.RWMutex
+	activeModsMap = make(map[string]bool)
+)
 var SupportedModifiers = []string{ModCtrl, ModShift, ModAlt}
 var isSupportedModMap = map[string]bool{"ctrl": true, "shift": true, "alt": true}
 
@@ -36,7 +41,20 @@ type FlexMacro struct {
 	Enabled   bool       `json:"enabled"`
 }
 
-func (m *FlexMacro) ExecuteMacro(a fyne.App) {
+func (m FlexMacro) ToLookupKey() string {
+	if len(m.Modifiers) == 0 {
+		return m.Key // e.g., "F2"
+	}
+
+	// Copy and sort to guarantee consistent ordering regardless of how it's stored
+	mods := make([]string, len(m.Modifiers))
+	copy(mods, m.Modifiers)
+	sort.Strings(mods)
+
+	return strings.Join(mods, "+") + "+" + m.Key // e.g., "Ctrl+Shift+F2"
+}
+
+func (m *FlexMacro) ExecuteMacro() {
 	if !m.Enabled {
 		return
 	}
@@ -54,13 +72,13 @@ func (m *FlexMacro) ExecuteMacro(a fyne.App) {
 		keys := parseKeys(m.Payload)
 
 		for _, k := range keys {
-			// TODO: robotgo.KeyTap(k)
-			fmt.Printf(string(k))
+			robotgo.KeyTap(k)
 			if m.DelayMS > 0 {
 				robotgo.MilliSleep(m.DelayMS)
 			}
 		}
 	}
+	debugLog("Attempting to execute macro: %+v", m)
 }
 
 func (m *FlexMacro) DisplayTrigger() string {
@@ -117,4 +135,21 @@ func cleanModifierName(key string) string {
 
 func isModifier(key string) bool {
 	return isSupportedModMap[cleanModifierName(key)]
+}
+
+func ExtractModifiers(mask uint16) []string {
+	var activeMods []string
+
+	// Standard gohook bit flags: 1 = Shift, 2 = Ctrl, 4 = Alt
+	if mask&2 != 0 {
+		activeMods = append(activeMods, ModCtrl)
+	}
+	if mask&1 != 0 {
+		activeMods = append(activeMods, ModShift)
+	}
+	if mask&4 != 0 {
+		activeMods = append(activeMods, ModAlt)
+	}
+
+	return activeMods
 }

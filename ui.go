@@ -1,14 +1,9 @@
 package main
 
 import (
-	//"fmt"
-	//"strings"
-
-	"fmt"
 	"strings"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
@@ -23,63 +18,30 @@ type KeybindButton struct {
 	window      fyne.Window
 }
 
-func setupWindow() {
-	trade47 := app.New()
-	myWindow := trade47.NewWindow("PoE Trade47")
-	myWindow.Resize(fyne.NewSize(720, 720))
-
+// #region UI Elements
+func newCommandOption(win fyne.Window) *fyne.Container {
 	testMacro := FlexMacro{
 		Name:    "Go to hideout",
 		Type:    ActionTextCommand,
 		Payload: "/hideout",
 		Enabled: true,
 	}
-	statusLabel := widget.NewLabel("Bound Keybind: " + testMacro.DisplayTrigger())
-	bindBttn := NewKeybindButton(myWindow, "Click to Bind Key", func(mods []string, key string) {
+
+	textEntry := widget.NewEntry()
+	textEntry.SetPlaceHolder("Text (ie. /hideout)")
+
+	bindButton := NewKeybindButton(win, "Click to Bind Key", func(mods []string, key string) {
 		testMacro.Modifiers = mods
 		testMacro.Key = key
 
-		statusLabel.SetText("Bound Keybind" + testMacro.DisplayTrigger())
-		fmt.Printf("[TEST SUCCESS] Bound %s -> Mods: %v | Key: %s\n", testMacro.Name, testMacro.Modifiers, testMacro.Key)
+		//statusLabel.SetText("Bound Keybind" + testMacro.DisplayTrigger())
+		//fmt.Printf("[TEST SUCCESS] Bound %s -> Mods: %v | Key: %s\n", testMacro.Name, testMacro.Modifiers, testMacro.Key)
 
 	})
-	content := container.NewVBox(
-		widget.NewLabelWithStyle("Macro Setup", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		widget.NewLabel("Action: "+testMacro.Name+" ("+testMacro.Payload+")"),
-		bindBttn,
-		widget.NewSeparator(),
-		statusLabel,
-	)
 
-	//content := setupHotkeyUI(myWindow)
-	myWindow.SetContent(content)
-	myWindow.ShowAndRun()
-}
-
-func setupHotkeyUI(window fyne.Window) fyne.CanvasObject {
-	// Create label headers and boxes
-	cmdInput := widget.NewEntry()
-	cmdInput.SetPlaceHolder("eg. /logout")
-
-	bindButton := widget.NewButton("Click to Bind Key", nil)
-	statusLabel := widget.NewLabel("Satus: Idle")
-
-	//isListeningForBind := false
-	bindButton.OnTapped = func() {
-		//isListeningForBind = true
-		fmt.Println("pressed")
-		bindButton.SetText("Press Any Key Combo...")
-		statusLabel.SetText("Listening for hotkey sequence...")
-	}
-
-	return container.NewVBox(
-		widget.NewLabel("In-Game Command: "),
-		cmdInput,
-		widget.NewLabel("Trigger hotkey: "),
-		bindButton,
-		widget.NewSeparator(),
-		statusLabel,
-	)
+	// Pass directly to command manager
+	//GlobalCommandManager.AddOrUpdate(macro)
+	return container.NewBorder(nil, nil, bindButton, nil, textEntry)
 }
 
 func NewKeybindButton(win fyne.Window, initialLabel string, onBound func(mods []string, key string)) *KeybindButton {
@@ -94,6 +56,52 @@ func NewKeybindButton(win fyne.Window, initialLabel string, onBound func(mods []
 	return k
 }
 
+func CreateScrollClickerTile() *fyne.Container {
+	check := widget.NewCheck("Enable Scroll Wheel -> Left click (stash)", func(checked bool) {
+		GlobalScrollClicker.SetEnabled(checked)
+	})
+
+	return container.NewVBox(
+		widget.NewLabelWithStyle("Inventory Utilities", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		check,
+	)
+}
+
+// #endregion
+
+// #region UI Sections
+
+func setupWindow(myWindow fyne.Window) {
+	mainLayout := container.NewVBox(
+		CreateScrollClickerTile(), // checkboxes
+		widget.NewSeparator(),
+		setupMacroSection(myWindow),
+	)
+
+	//content := setupHotkeyUI(myWindow)
+	myWindow.SetContent(mainLayout)
+	myWindow.ShowAndRun()
+}
+
+func setupMacroSection(win fyne.Window) *fyne.Container {
+
+	macros := container.NewVBox(
+		widget.NewLabelWithStyle("Macro Setup", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		container.NewAdaptiveGrid(2,
+			newCommandOption(win),
+			newCommandOption(win),
+			newCommandOption(win),
+			newCommandOption(win),
+			newCommandOption(win),
+		),
+	)
+
+	return macros
+}
+
+// #endregion
+
+// #region Keybind button
 func (k *KeybindButton) FocusGained() {}
 func (k *KeybindButton) FocusLost() {
 	if k.isListening {
@@ -176,6 +184,8 @@ func (k *KeybindButton) updateActiveLabel() {
 	}
 	k.SetText(strings.Join(parts, " + "))
 }
+
+// #endregion
 
 var _ desktop.Keyable = (*KeybindButton)(nil)
 var _ fyne.Focusable = (*KeybindButton)(nil)

@@ -43,8 +43,8 @@ func StartInputManager(stopChan <-chan struct{}) {
 
 	evChan := hook.Start()
 	defer func() {
-		hook.End()
 		debugLog("Global OS input manager stopped and hook is unbound.")
+		hook.End()
 	}()
 
 	for {
@@ -64,6 +64,7 @@ func StartInputManager(stopChan <-chan struct{}) {
 
 			// 1. Scroll-clicking handler
 			case hook.MouseWheel:
+				debugLog("Wheel detected")
 				GlobalScrollClicker.TriggerClick()
 
 			// 2. Hotkey handler

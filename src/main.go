@@ -12,6 +12,7 @@ var trade47 fyne.App
 func main() {
 	// fmt.Println("Hello world in Go!") // xD
 	debugLog("App started")
+
 	// Tracker for making sure the program only runs in the desired game (poe1 or 2)
 	stopTracker := make(chan struct{})
 	stopInput := make(chan struct{})
@@ -30,7 +31,7 @@ func main() {
 	myWindow.Resize(fyne.NewSize(720, 720))
 
 	// Load resources
-	iconRes, err := fyne.LoadResourceFromPath("ui/cheesecake47.jpg")
+	iconRes, err := fyne.LoadResourceFromPath("../resources/cheesecake47.jpg")
 	if err != nil || iconRes == nil {
 		fmt.Println("[WARN] Failed to load app icon.")
 	} else {
@@ -38,9 +39,8 @@ func main() {
 		myWindow.SetIcon(iconRes)
 	}
 
-	SetupSystemTray(trade47, myWindow)
-	myWindow.Show()
+	//SetupSystemTray(trade47, myWindow)
 	setupWindow(myWindow)
 
-	trade47.Run()
+	myWindow.Show()
 }

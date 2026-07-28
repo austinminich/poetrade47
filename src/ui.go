@@ -32,12 +32,14 @@ func setupWindow(myWindow fyne.Window) {
 	myWindow.ShowAndRun()
 }
 
-func SetupSystemTray(app fyne.App, win fyne.Window) {
+func SetupSystemTray(app fyne.App, win fyne.Window) { // This function causes the
 	// Intecept the window 'X' close button to hide to sys tray
-	win.SetCloseIntercept(func() {
-		debugLog("Window hidden to system tray.")
-		win.Hide()
-	})
+	/*
+		win.SetCloseIntercept(func() {
+			debugLog("Window hidden to system tray.")
+			//win.Hide() // this breaks the functionality for wheel input.
+		})
+	*/
 
 	desktop, ok := app.(desktop.App)
 	if !ok {
@@ -54,13 +56,20 @@ func SetupSystemTray(app fyne.App, win fyne.Window) {
 		}),
 		fyne.NewMenuItemSeparator(),
 		fyne.NewMenuItem("Close", func() {
-			hook.End()
+			//stopHooks()
 			trade47.Quit()
 		}),
 	)
 
+	desktop.SetSystemTrayWindow(win)
 	desktop.SetSystemTrayMenu(trayMenu)
+}
 
+func stopHooks() {
+	defer func() {
+		_ = recover()
+	}()
+	hook.End()
 }
 
 // #region UI Elements

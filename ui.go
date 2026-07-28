@@ -1,12 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
+	hook "github.com/robotn/gohook"
 )
 
 type KeybindButton struct {
@@ -16,6 +18,49 @@ type KeybindButton struct {
 	key         string
 	onBound     func(modifiers []string, key string)
 	window      fyne.Window
+}
+
+func setupWindow(myWindow fyne.Window) {
+	mainLayout := container.NewVBox(
+		CreateScrollClickerTile(), // checkboxes
+		widget.NewSeparator(),
+		setupMacroSection(myWindow),
+	)
+
+	//content := setupHotkeyUI(myWindow)
+	myWindow.SetContent(mainLayout)
+	myWindow.ShowAndRun()
+}
+
+func SetupSystemTray(app fyne.App, win fyne.Window) {
+	// Intecept the window 'X' close button to hide to sys tray
+	win.SetCloseIntercept(func() {
+		debugLog("Window hidden to system tray.")
+		win.Hide()
+	})
+
+	desktop, ok := app.(desktop.App)
+	if !ok {
+		fmt.Println("[ERROR] Desktop driver not supported or type assertion failed!")
+		return
+	}
+	debugLog("Registering System Tray Menu...")
+
+	// Sys tray menu
+	trayMenu := fyne.NewMenu("Trade47",
+		fyne.NewMenuItem("Show Window", func() {
+			win.Show()
+			win.RequestFocus()
+		}),
+		fyne.NewMenuItemSeparator(),
+		fyne.NewMenuItem("Close", func() {
+			hook.End()
+			trade47.Quit()
+		}),
+	)
+
+	desktop.SetSystemTrayMenu(trayMenu)
+
 }
 
 // #region UI Elements
@@ -70,19 +115,6 @@ func CreateScrollClickerTile() *fyne.Container {
 // #endregion
 
 // #region UI Sections
-
-func setupWindow(myWindow fyne.Window) {
-	mainLayout := container.NewVBox(
-		CreateScrollClickerTile(), // checkboxes
-		widget.NewSeparator(),
-		setupMacroSection(myWindow),
-	)
-
-	//content := setupHotkeyUI(myWindow)
-	myWindow.SetContent(mainLayout)
-	myWindow.ShowAndRun()
-}
-
 func setupMacroSection(win fyne.Window) *fyne.Container {
 
 	macros := container.NewVBox(

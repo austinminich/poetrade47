@@ -35,3 +35,4 @@ poetrade47.AppDir/*
 *.AppImage
 build/*
 squashfs-root/*
+poetrade47.desktop

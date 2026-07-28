@@ -21,6 +21,11 @@ func (cm *CommandManager) AddOrUpdate(cmd FlexMacro) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
+	// Saftey net
+	if cm.macros == nil {
+		cm.macros = make(map[string]FlexMacro)
+	}
+
 	lookupKey := cmd.ToLookupKey()
 	cm.macros[lookupKey] = cmd
 	debugLog("Registered command '%s' [key: %s]", cmd.Name, lookupKey)
@@ -29,6 +34,11 @@ func (cm *CommandManager) AddOrUpdate(cmd FlexMacro) {
 func (cm *CommandManager) Remove(macro FlexMacro) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
+
+	// Saftey net
+	if cm.macros == nil {
+		return
+	}
 
 	lookupKey := macro.ToLookupKey()
 	delete(cm.macros, macro.ToLookupKey())
@@ -39,7 +49,7 @@ func (cm *CommandManager) Remove(macro FlexMacro) {
 // Checks if the command exists and executes it. Returns false if it doesn't exist
 func (cm *CommandManager) ExecuteIfMapped(lookupKey string) bool {
 	cm.mu.Lock()
-	cmd, exists := cm.macros[lookupKey]
+	cmd, exists := cm.getMacro(lookupKey)
 	cm.mu.RUnlock()
 
 	if !exists || !cmd.Enabled {
@@ -49,4 +59,16 @@ func (cm *CommandManager) ExecuteIfMapped(lookupKey string) bool {
 	cmd.ExecuteMacro()
 
 	return true
+}
+
+func (cm *CommandManager) getMacro(lookupKey string) (FlexMacro, bool) {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
+
+	if cm.macros == nil {
+		return FlexMacro{}, false
+	}
+
+	macro, exists := cm.macros[lookupKey]
+	return macro, exists
 }

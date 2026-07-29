@@ -48,8 +48,9 @@ func (cm *CommandManager) Remove(macro FlexMacro) {
 
 // Checks if the command exists and executes it. Returns false if it doesn't exist
 func (cm *CommandManager) ExecuteIfMapped(lookupKey string) bool {
-	cm.mu.Lock()
-	cmd, exists := cm.getMacro(lookupKey)
+	debugLog("Handling input for key '%s'", lookupKey)
+	cm.mu.RLock()
+	cmd, exists := cm.macros[lookupKey]
 	cm.mu.RUnlock()
 
 	if !exists || !cmd.Enabled {
@@ -59,16 +60,4 @@ func (cm *CommandManager) ExecuteIfMapped(lookupKey string) bool {
 	cmd.ExecuteMacro()
 
 	return true
-}
-
-func (cm *CommandManager) getMacro(lookupKey string) (FlexMacro, bool) {
-	cm.mu.RLock()
-	defer cm.mu.RUnlock()
-
-	if cm.macros == nil {
-		return FlexMacro{}, false
-	}
-
-	macro, exists := cm.macros[lookupKey]
-	return macro, exists
 }

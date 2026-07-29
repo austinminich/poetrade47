@@ -18,11 +18,11 @@ const (
 )
 
 var (
-	modMu         sync.RWMutex
-	activeModsMap = make(map[string]bool)
+	modMu              sync.RWMutex
+	activeModsMap      = make(map[string]bool)
+	SupportedModifiers = []string{ModCtrl, ModShift, ModAlt}
+	isSupportedModMap  = map[string]bool{"ctrl": true, "shift": true, "alt": true}
 )
-var SupportedModifiers = []string{ModCtrl, ModShift, ModAlt}
-var isSupportedModMap = map[string]bool{"ctrl": true, "shift": true, "alt": true}
 
 type ActionType string
 
@@ -39,19 +39,6 @@ type FlexMacro struct {
 	Payload   string     `json:"payload"`
 	DelayMS   int        `json:"delay_ms"`
 	Enabled   bool       `json:"enabled"`
-}
-
-func (m FlexMacro) ToLookupKey() string {
-	if len(m.Modifiers) == 0 {
-		return m.Key // e.g., "F2"
-	}
-
-	// Copy and sort to guarantee consistent ordering regardless of how it's stored
-	mods := make([]string, len(m.Modifiers))
-	copy(mods, m.Modifiers)
-	sort.Strings(mods)
-
-	return strings.Join(mods, "+") + "+" + m.Key // e.g., "Ctrl+Shift+F2"
 }
 
 func (m *FlexMacro) ExecuteMacro() {
@@ -101,8 +88,8 @@ func StartKeyboardEngine(onKeyPress func(string)) {
 	}
 }
 
-// Lower case function name dictates PRIVATE
-// Upper case function name dictates PUBLIC and is exported
+// #region Helper Functions
+
 func parseKeys(s string) []string {
 	var keys []string
 
@@ -119,24 +106,7 @@ func parseKeys(s string) []string {
 	return keys
 }
 
-func cleanModifierName(key string) string {
-	k := strings.ToLower(key)
-	switch {
-	case strings.Contains(k, "shift"):
-		return "shift"
-	case strings.Contains(k, "control"):
-		return "ctrl"
-	case strings.Contains(k, "alt"):
-		return "alt"
-	default:
-		return k
-	}
-}
-
-func isModifier(key string) bool {
-	return isSupportedModMap[cleanModifierName(key)]
-}
-
+/*
 func ExtractModifiers(mask uint16) []string {
 	var activeMods []string
 
@@ -153,3 +123,19 @@ func ExtractModifiers(mask uint16) []string {
 
 	return activeMods
 }
+*/
+
+func (m FlexMacro) ToLookupKey() string {
+	if len(m.Modifiers) == 0 {
+		return m.Key // e.g., "F2"
+	}
+
+	// Copy and sort to guarantee consistent ordering regardless of how it's stored
+	mods := make([]string, len(m.Modifiers))
+	copy(mods, m.Modifiers)
+	sort.Strings(mods)
+
+	return strings.Join(mods, "+") + "+" + m.Key // e.g., "Ctrl+Shift+F2"
+}
+
+// #endregion

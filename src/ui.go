@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"poetrade47/src/helpers"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -157,14 +158,28 @@ func (k *KeybindButton) startListening() {
 	k.isListening = true
 	k.modifiers = make(map[string]bool)
 	k.key = ""
-	k.SetText("Press key combo...")
-	k.window.Canvas().Focus(k)
+	fyne.Do(func() {
+		k.SetText("Press key combo...")
+		k.window.Canvas().Focus(k)
+	})
 }
 
 func (k *KeybindButton) stopListening() {
 	k.isListening = false
 	if k.key == "" {
-		k.SetText("Unbound")
+		fyne.Do(func() {
+			k.SetText("Unbound")
+		})
+	}
+}
+
+func (k *KeybindButton) KeyUp(key *fyne.KeyEvent) {
+	if !k.isListening {
+		return
+	}
+	if helpers.IsFyneModifier(key.Name) {
+		delete(k.modifiers, helpers.CleanFyneModifierName(key.Name))
+		k.updateActiveLabel()
 	}
 }
 
@@ -172,13 +187,12 @@ func (k *KeybindButton) KeyDown(key *fyne.KeyEvent) {
 	if !k.isListening {
 		return
 	}
-	keyName := string(key.Name)
-	if isModifier(keyName) {
-		k.modifiers[cleanModifierName(keyName)] = true
+	if helpers.IsFyneModifier(key.Name) {
+		k.modifiers[helpers.CleanFyneModifierName(key.Name)] = true
 		k.updateActiveLabel()
 		return
 	}
-	k.key = strings.ToLower(keyName)
+	k.key = strings.ToLower(string(key.Name))
 	k.updateActiveLabel()
 
 	var activeMods []string
@@ -196,18 +210,6 @@ func (k *KeybindButton) KeyDown(key *fyne.KeyEvent) {
 	k.window.Canvas().Unfocus()
 }
 
-func (k *KeybindButton) KeyUp(key *fyne.KeyEvent) {
-	if !k.isListening {
-		return
-	}
-
-	keyName := string(key.Name)
-	if isModifier(keyName) {
-		delete(k.modifiers, cleanModifierName(keyName))
-		k.updateActiveLabel()
-	}
-}
-
 func (k *KeybindButton) updateActiveLabel() {
 	var parts []string
 	for _, mod := range SupportedModifiers {
@@ -223,7 +225,10 @@ func (k *KeybindButton) updateActiveLabel() {
 	} else {
 		parts = append(parts, "Press key...")
 	}
-	k.SetText(strings.Join(parts, " + "))
+	fyne.Do(func() {
+		k.SetText(strings.Join(parts, " + "))
+	})
+
 }
 
 // #endregion

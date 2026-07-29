@@ -1,6 +1,7 @@
 package main
 
 import (
+	"poetrade47/src/helpers"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -64,28 +65,28 @@ func StartInputManager(stopChan <-chan struct{}) {
 
 			// 1. Scroll-clicking handler
 			case hook.MouseWheel:
-				debugLog("Wheel detected")
 				GlobalScrollClicker.TriggerClick()
 
 			// 2. Hotkey handler
 			case hook.KeyDown:
-				k := strings.ToLower(hook.RawcodetoKeychar(ev.Rawcode))
-				if k == "" {
-					k = strings.ToLower(string(ev.Keychar))
+				isMod, key := helpers.SolveKeycode(ev.Rawcode)
+				debugLog("Keydown detected: %s", key)
+				if key == "" {
+					debugLog("Key '%s' was found to be empty?", key)
+					key = strings.ToLower(string(ev.Keychar))
 				}
-
-				if isModifier(k) {
+				if isMod {
+					debugLog("MODIFIER keydown: %s", key)
 					continue
 				}
-
-				m := FlexMacro{
-					Modifiers: ExtractModifiers(ev.Mask),
-					Key:       k,
-				}
-				lookupKey := m.ToLookupKey()
-				if GlobalCommandManager.ExecuteIfMapped(lookupKey) {
-					debugLog("Handled macro keycode: %v", ev.Rawcode)
-				}
+				/*
+					m := FlexMacro{
+						Modifiers: ExtractModifiers(ev.Mask),
+						Key:       k,
+					}
+				*/
+				//lookupKey := m.ToLookupKey()
+				go GlobalCommandManager.ExecuteIfMapped(key)
 			}
 		}
 	}

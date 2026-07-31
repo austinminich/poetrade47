@@ -7,28 +7,26 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
 	hook "github.com/robotn/gohook"
 )
 
-type KeybindButton struct {
-	widget.Button
-	isListening bool
-	modifiers   map[string]bool
-	key         string
-	onBound     func(modifiers []string, key string)
-	window      fyne.Window
-}
-
 func setupWindow(myWindow fyne.Window) {
-	mainLayout := container.NewVBox(
-		CreateScrollClickerTile(), // checkboxes
-		widget.NewSeparator(),
-		setupMacroSection(myWindow),
+	footer := container.NewHBox(widget.NewLabelWithStyle(
+		"Test Subject",
+		fyne.TextAlignCenter,
+		fyne.TextStyle{Bold: true}))
+
+	mainLayout := container.NewBorder(
+		CreateScrollClickerTile(), // top
+		footer,                    // bottom
+		nil,                       // left
+		nil,                       // right
+		setupMacroSection(),       // center
 	)
 
-	//content := setupHotkeyUI(myWindow)
 	myWindow.SetContent(mainLayout)
 	myWindow.ShowAndRun()
 }
@@ -73,42 +71,48 @@ func stopHooks() {
 	hook.End()
 }
 
-// #region UI Elements
-func newCommandOption(win fyne.Window) *fyne.Container {
-	testMacro := FlexMacro{
-		Name:    "Go to hideout",
-		Type:    ActionTextCommand,
-		Payload: "/hideout",
-		Enabled: true,
+// #region UI sub Elements
+
+type CommandOption struct {
+	Macro      *FlexMacro
+	TextEntry  *widget.Entry
+	BindBttn   *KeybindButton
+	removeBttn *widget.Button
+}
+
+func newCommandOption() *CommandOption {
+	cmd := &CommandOption{
+		Macro:    &FlexMacro{},
+		BindBttn: &KeybindButton{},
 	}
 
-	textEntry := widget.NewEntry()
-	textEntry.SetPlaceHolder("Text (ie. /hideout)")
+	cmd.TextEntry = widget.NewEntry()
+	cmd.TextEntry.SetPlaceHolder("Text (ie. /hideout)")
 
-	bindButton := NewKeybindButton(win, "Click to Bind Key", func(mods []string, key string) {
-		testMacro.Modifiers = mods
-		testMacro.Key = key
+	cmd.TextEntry.OnSubmitted = func(val string) {
+		if strings.TrimSpace(val) == "" && val != "" {
+			fyne.Do(func() {
+				debugLog("Text entry had empty spaces. Set to have nothing")
+				cmd.TextEntry.SetText("")
+			})
+		}
+		if val != "" || strings.TrimSpace(val) != "" {
+			debugLog("TextEntry submitted with text")
+		}
+	}
 
-		//statusLabel.SetText("Bound Keybind" + testMacro.DisplayTrigger())
-		//fmt.Printf("[TEST SUCCESS] Bound %s -> Mods: %v | Key: %s\n", testMacro.Name, testMacro.Modifiers, testMacro.Key)
+	cmd.BindBttn = NewKeybindButton("Click to bind", func(mods []string, key string) {
+		cmd.Macro.Modifiers = mods
+		cmd.Macro.Key = key
+	})
 
+	cmd.removeBttn = widget.NewButton("Remove", func() {
+		debugLog("Remove button: tapped")
 	})
 
 	// Pass directly to command manager
 	//GlobalCommandManager.AddOrUpdate(macro)
-	return container.NewBorder(nil, nil, bindButton, nil, textEntry)
-}
-
-func NewKeybindButton(win fyne.Window, initialLabel string, onBound func(mods []string, key string)) *KeybindButton {
-	k := &KeybindButton{
-		modifiers: make(map[string]bool),
-		onBound:   onBound,
-		window:    win,
-	}
-	k.Text = initialLabel
-	k.OnTapped = k.startListening
-	k.ExtendBaseWidget(k)
-	return k
+	return cmd
 }
 
 func CreateScrollClickerTile() *fyne.Container {
@@ -124,26 +128,136 @@ func CreateScrollClickerTile() *fyne.Container {
 
 // #endregion
 
-// #region UI Sections
-func setupMacroSection(win fyne.Window) *fyne.Container {
+// #region Macro Section
 
-	macros := container.NewVBox(
-		widget.NewLabelWithStyle("Macro Setup", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		container.NewAdaptiveGrid(2,
-			newCommandOption(win),
-			newCommandOption(win),
-			newCommandOption(win),
-			newCommandOption(win),
-			newCommandOption(win),
-		),
-	)
+type MacroState struct {
+	Options []*CommandOption
+	List    *widget.List
+}
 
-	return macros
+func setupMacroSection() fyne.CanvasObject {
+	macroListView, macros := buildMacroListUI()
+
+	leftText := widget.NewLabelWithStyle("Macros", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	addBtn := widget.NewButton("Add Cmd", func() {
+		macros.Options = append(macros.Options, newCommandOption())
+		macros.List.Refresh()
+	})
+	header := container.NewBorder(nil, nil, leftText, addBtn, nil)
+
+	return container.NewBorder(header, nil, nil, nil, macroListView)
+}
+
+func buildMacroListUI() (fyne.CanvasObject, *MacroState) {
+	state := &MacroState{
+		Options: []*CommandOption{},
+	}
+	state.Options = append(state.Options, newCommandOption())
+
+	list := widget.NewList(
+		func() int {
+			return len(state.Options)
+		},
+		func() fyne.CanvasObject {
+			opt := newCommandOption()
+
+			rightPart := container.NewHBox(
+				opt.TextEntry,
+				opt.removeBttn,
+			)
+			return container.NewBorder(nil, nil, opt.BindBttn, nil, rightPart)
+		},
+		func(id widget.ListItemID, item fyne.CanvasObject) {
+			borderContainer := item.(*fyne.Container)
+
+			// Extract our button box and entry from border container
+			bindBtn := borderContainer.Objects[1].(*KeybindButton)
+			rightPart := borderContainer.Objects[0].(*fyne.Container)
+
+			entry := rightPart.Objects[0].(*widget.Entry)
+			remBtn := rightPart.Objects[1].(*widget.Button)
+
+			opt := state.Options[id]
+
+			// Sync bind btn
+			bindBtn.OnTapped = func() {
+				bindBtn.startListening()
+				if canvas := getActiveCanvas(bindBtn); canvas != nil {
+					canvas.Focus(bindBtn)
+				}
+			}
+			bindBtn.onBound = func(modifiers []string, key string) {
+				opt.Macro.Modifiers = modifiers
+				opt.Macro.Key = key
+				bindBtn.updateActiveLabel()
+				state.List.Refresh()
+			}
+			bindBtn.updateActiveLabel()
+
+			// Sync entry
+			entry.SetText(opt.TextEntry.Text)
+			entry.OnChanged = opt.TextEntry.OnChanged
+			entry.OnSubmitted = opt.TextEntry.OnSubmitted
+
+			// Sync rem btn
+			remBtn.OnTapped = func() {
+				debugLog("Attempting to remove command %v", state.Options[id].Macro.Name)
+				win := fyne.CurrentApp().Driver().AllWindows()[0]
+
+				dialog.ShowConfirm("Delete Hotkey?", "Remove this hotkey and command?", func(confirmed bool) {
+					if confirmed {
+						if id < 0 || id >= len(state.Options) {
+							fmt.Printf("[ERROR] Attempted to remove a non-existant command @ id %v", id)
+							return
+						}
+						// Remove the item id from the backing slice
+						state.Options = append(state.Options[:id], state.Options[id+1:]...)
+						// refresh the renderer
+						state.List.Refresh()
+					}
+
+				}, win)
+			}
+		})
+	state.List = list
+	return list, state
 }
 
 // #endregion
 
 // #region Keybind button
+
+type KeybindButton struct {
+	widget.Button
+	isListening bool
+	modifiers   map[string]bool
+	key         string
+	onBound     func(modifiers []string, key string)
+	window      fyne.Window
+}
+
+func NewKeybindButton(initialLabel string, onBound func(mods []string, key string)) *KeybindButton {
+	k := &KeybindButton{
+		modifiers: make(map[string]bool),
+		onBound:   onBound,
+	}
+	k.Text = initialLabel
+	k.OnTapped = k.startListening
+	windows := fyne.CurrentApp().Driver().AllWindows()
+	if len(windows) > 0 {
+		k.window = windows[0]
+	}
+	k.ExtendBaseWidget(k)
+	return k
+}
+
+func formatKeyLabel(mods []string, key string) string {
+	if len(mods) == 0 && key == "" {
+		return "Click to Bind Key"
+	}
+	return strings.ToUpper(strings.Join(mods, "+") + key)
+}
+
 func (k *KeybindButton) FocusGained() {}
 func (k *KeybindButton) FocusLost() {
 	if k.isListening {
@@ -158,10 +272,14 @@ func (k *KeybindButton) startListening() {
 	k.isListening = true
 	k.modifiers = make(map[string]bool)
 	k.key = ""
-	fyne.Do(func() {
-		k.SetText("Press key combo...")
-		k.window.Canvas().Focus(k)
-	})
+
+	canvas := getActiveCanvas(k)
+	if canvas != nil {
+		fyne.Do(func() {
+			k.SetText("Press key combo...")
+			k.window.Canvas().Focus(k)
+		})
+	}
 }
 
 func (k *KeybindButton) stopListening() {
@@ -207,7 +325,10 @@ func (k *KeybindButton) KeyDown(key *fyne.KeyEvent) {
 	}
 
 	k.isListening = false
-	k.window.Canvas().Unfocus()
+	canvas := getActiveCanvas(k)
+	if canvas != nil {
+		k.window.Canvas().Unfocus()
+	}
 }
 
 func (k *KeybindButton) updateActiveLabel() {
@@ -233,5 +354,17 @@ func (k *KeybindButton) updateActiveLabel() {
 
 // #endregion
 
-var _ desktop.Keyable = (*KeybindButton)(nil)
-var _ fyne.Focusable = (*KeybindButton)(nil)
+func getActiveCanvas(obj fyne.CanvasObject) fyne.Canvas {
+	// 1. Try resolving via object hierarchy
+	if canvas := fyne.CurrentApp().Driver().CanvasForObject(obj); canvas != nil {
+		return canvas
+	}
+
+	// 2. Fallback: Get the main application window's canvas directly
+	windows := fyne.CurrentApp().Driver().AllWindows()
+	if len(windows) > 0 {
+		return windows[0].Canvas()
+	}
+
+	return nil
+}

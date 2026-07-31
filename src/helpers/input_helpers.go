@@ -26,8 +26,8 @@ func IsFyneModifier(key fyne.KeyName) bool {
 	k := strings.ToLower(string(key))
 	switch {
 	case strings.Contains(k, "shift"),
-		strings.Contains(k, "shift"),
-		strings.Contains(k, "shift"):
+		strings.Contains(k, "control"),
+		strings.Contains(k, "alt"):
 		return true
 	default:
 		return false
@@ -46,4 +46,20 @@ func CleanFyneModifierName(key fyne.KeyName) string {
 	default:
 		return k
 	}
+}
+
+func ParseKeys(s string) []string {
+	var keys []string
+
+	// Trim keys to their raw form
+	rawKeys := strings.Split(s, ",")
+	for _, k := range rawKeys {
+		// Trim away spaces
+		cleaned := strings.TrimSpace(k)
+		if cleaned != "" {
+			keys = append(keys, cleaned)
+		}
+	}
+
+	return keys
 }

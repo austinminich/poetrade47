@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"poetrade47/src/helpers"
 	"sort"
 	"strings"
 	"sync"
@@ -56,7 +57,7 @@ func (m *FlexMacro) ExecuteMacro() {
 		robotgo.KeyTap("enter")
 	case ActionKeySequence:
 		// ie. 1,2,3 for flasks
-		keys := parseKeys(m.Payload)
+		keys := helpers.ParseKeys(m.Payload)
 
 		for _, k := range keys {
 			robotgo.KeyTap(k)
@@ -88,43 +89,6 @@ func StartKeyboardEngine(onKeyPress func(string)) {
 	}
 }
 
-// #region Helper Functions
-
-func parseKeys(s string) []string {
-	var keys []string
-
-	// Trim keys to their raw form
-	rawKeys := strings.Split(s, ",")
-	for _, k := range rawKeys {
-		// Trim away spaces
-		cleaned := strings.TrimSpace(k)
-		if cleaned != "" {
-			keys = append(keys, cleaned)
-		}
-	}
-
-	return keys
-}
-
-/*
-func ExtractModifiers(mask uint16) []string {
-	var activeMods []string
-
-	// Standard gohook bit flags: 1 = Shift, 2 = Ctrl, 4 = Alt
-	if mask&2 != 0 {
-		activeMods = append(activeMods, ModCtrl)
-	}
-	if mask&1 != 0 {
-		activeMods = append(activeMods, ModShift)
-	}
-	if mask&4 != 0 {
-		activeMods = append(activeMods, ModAlt)
-	}
-
-	return activeMods
-}
-*/
-
 func (m FlexMacro) ToLookupKey() string {
 	if len(m.Modifiers) == 0 {
 		return m.Key // e.g., "F2"
@@ -137,5 +101,3 @@ func (m FlexMacro) ToLookupKey() string {
 
 	return strings.Join(mods, "+") + "+" + m.Key // e.g., "Ctrl+Shift+F2"
 }
-
-// #endregion

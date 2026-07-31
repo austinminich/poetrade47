@@ -42,7 +42,6 @@ func (cm *CommandManager) Remove(macro FlexMacro) {
 
 	lookupKey := macro.ToLookupKey()
 	delete(cm.macros, macro.ToLookupKey())
-
 	debugLog("Removed macro under lookupkey: %s", lookupKey)
 }
 

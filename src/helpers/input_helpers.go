@@ -7,6 +7,17 @@ import (
 	"fyne.io/fyne/v2"
 )
 
+const (
+	ModCtrl  = "ctrl"
+	ModShift = "shift"
+	ModAlt   = "alt"
+)
+
+var (
+	SupportedModifiers = []string{ModCtrl, ModShift, ModAlt}
+	isSupportedModMap  = map[string]bool{"ctrl": true, "shift": true, "alt": true}
+)
+
 func SolveKeycode(code uint16) (bool, string) {
 	switch code {
 	// Shift, Ctrl, Alt

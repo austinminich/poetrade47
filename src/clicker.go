@@ -1,6 +1,7 @@
 package main
 
 import (
+	"poetrade47/src/helpers"
 	"sync/atomic"
 
 	"github.com/go-vgo/robotgo"
@@ -14,7 +15,7 @@ var GlobalScrollClicker = &ScrollClicker{}
 
 func (sc *ScrollClicker) SetEnabled(enable bool) {
 	sc.enabled.Store(enable)
-	debugLog("ScrollClicker state changed: enabled = %v", enable)
+	helpers.DebugLog("ScrollClicker state changed: enabled = %v", enable)
 }
 
 func (sc *ScrollClicker) IsEnabled() bool {

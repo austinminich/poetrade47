@@ -2,16 +2,20 @@ package main
 
 import (
 	"fmt"
+	"poetrade47/src/helpers"
+	"poetrade47/src/ui"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/driver/desktop"
+	hook "github.com/robotn/gohook"
 )
 
 var trade47 fyne.App
 
 func main() {
 	// fmt.Println("Hello world in Go!") // xD
-	debugLog("App started")
+	helpers.DebugLog("App started")
 
 	// Tracker for making sure the program only runs in the desired game (poe1 or 2)
 	stopTracker := make(chan struct{})
@@ -39,8 +43,53 @@ func main() {
 		myWindow.SetIcon(iconRes)
 	}
 
-	//SetupSystemTray(trade47, myWindow)
-	setupWindow(myWindow)
+	// Build settings page
+	settingsPage := ui.NewSettingsView()
+	myWindow.SetContent(settingsPage.BuildSettingsLayout())
 
-	myWindow.Show()
+	// Load Settings into memory
+	settingsPageCfg := settingsPage.GetSettingsConfig()
+	ApplySettingsConfig(settingsPageCfg)
+
+	myWindow.ShowAndRun()
+}
+
+func SetupSystemTray(app fyne.App, win fyne.Window) { // This function causes the
+	// Intecept the window 'X' close button to hide to sys tray
+	/*
+		win.SetCloseIntercept(func() {
+			debugLog("Window hidden to system tray.")
+			//win.Hide() // this breaks the functionality for wheel input.
+		})
+	*/
+
+	desktop, ok := app.(desktop.App)
+	if !ok {
+		fmt.Println("[ERROR] Desktop driver not supported or type assertion failed!")
+		return
+	}
+	helpers.DebugLog("Registering System Tray Menu...")
+
+	// Sys tray menu
+	trayMenu := fyne.NewMenu("Trade47",
+		fyne.NewMenuItem("Show Window", func() {
+			win.Show()
+			win.RequestFocus()
+		}),
+		fyne.NewMenuItemSeparator(),
+		fyne.NewMenuItem("Close", func() {
+			//stopHooks()
+			trade47.Quit()
+		}),
+	)
+
+	desktop.SetSystemTrayWindow(win)
+	desktop.SetSystemTrayMenu(trayMenu)
+}
+
+func stopHooks() {
+	defer func() {
+		_ = recover()
+	}()
+	hook.End()
 }

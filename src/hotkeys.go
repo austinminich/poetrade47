@@ -5,42 +5,11 @@ import (
 	"poetrade47/src/helpers"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/go-vgo/robotgo"
 	hook "github.com/robotn/gohook"
 )
-
-const (
-	ModCtrl  = "ctrl"
-	ModShift = "shift"
-	ModAlt   = "alt"
-)
-
-var (
-	modMu              sync.RWMutex
-	activeModsMap      = make(map[string]bool)
-	SupportedModifiers = []string{ModCtrl, ModShift, ModAlt}
-	isSupportedModMap  = map[string]bool{"ctrl": true, "shift": true, "alt": true}
-)
-
-type ActionType string
-
-const (
-	ActionTextCommand ActionType = "TextCommand" // '/hideout'
-	ActionKeySequence ActionType = "KeySequence" // 1, 2, 3
-)
-
-type FlexMacro struct {
-	Name      string     `json:"name"`
-	Modifiers []string   `json:"modifiers"`
-	Key       string     `json:"key"`
-	Type      ActionType `json:"type"`
-	Payload   string     `json:"payload"`
-	DelayMS   int        `json:"delay_ms"`
-	Enabled   bool       `json:"enabled"`
-}
 
 func (m *FlexMacro) ExecuteMacro() {
 	if !m.Enabled {
@@ -66,7 +35,7 @@ func (m *FlexMacro) ExecuteMacro() {
 			}
 		}
 	}
-	debugLog("Attempting to execute macro: %+v", m)
+	helpers.DebugLog("Attempting to execute macro: %+v", m)
 }
 
 func (m *FlexMacro) DisplayTrigger() string {

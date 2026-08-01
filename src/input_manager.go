@@ -2,6 +2,7 @@ package main
 
 import (
 	"poetrade47/src/helpers"
+	"poetrade47/src/ui"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -13,6 +14,11 @@ import (
 // Global flag for lock-free focus checks
 var poeFocused atomic.Bool
 
+func ApplySettingsConfig(cfg ui.SettingsConfig) {
+	GlobalScrollClicker.SetEnabled(cfg.ScrollClicker)
+	GlobalCommandManager.SyncMacros(cfg.Commands)
+}
+
 func StartFocusTracker(stopChan <-chan struct{}) {
 	ticker := time.NewTicker(300 * time.Millisecond)
 	defer ticker.Stop()
@@ -20,14 +26,14 @@ func StartFocusTracker(stopChan <-chan struct{}) {
 	for {
 		select {
 		case <-stopChan:
-			debugLog("Focus tracker stopped. App or channel closed")
+			helpers.DebugLog("Focus tracker stopped. App or channel closed")
 			return
 		case <-ticker.C:
 			title := robotgo.GetTitle()
 			isPoe := strings.Contains(title, "Path of Exile")
 
 			if isPoe != poeFocused.Load() {
-				debugLog("Focus state changed: PoE active = %v", isPoe)
+				helpers.DebugLog("Focus state changed: PoE active = %v", isPoe)
 				poeFocused.Store(isPoe)
 			}
 		}
@@ -40,11 +46,11 @@ func isPoEActive() bool {
 
 // Manages single global input listener loop
 func StartInputManager(stopChan <-chan struct{}) {
-	debugLog("Starting global OS input manager...")
+	helpers.DebugLog("Starting global OS input manager...")
 
 	evChan := hook.Start()
 	defer func() {
-		debugLog("Global OS input manager stopped and hook is unbound.")
+		helpers.DebugLog("Global OS input manager stopped and hook is unbound.")
 		hook.End()
 	}()
 
@@ -70,22 +76,15 @@ func StartInputManager(stopChan <-chan struct{}) {
 			// 2. Hotkey handler
 			case hook.KeyDown:
 				isMod, key := helpers.SolveKeycode(ev.Rawcode)
-				debugLog("Keydown detected: %s", key)
+				helpers.DebugLog("Keydown detected: %s", key)
 				if key == "" {
-					debugLog("Key '%s' was found to be empty?", key)
+					helpers.DebugLog("Key '%s' was found to be empty?", key)
 					key = strings.ToLower(string(ev.Keychar))
 				}
 				if isMod {
-					debugLog("MODIFIER keydown: %s", key)
+					helpers.DebugLog("MODIFIER keydown: %s", key)
 					continue
 				}
-				/*
-					m := FlexMacro{
-						Modifiers: ExtractModifiers(ev.Mask),
-						Key:       k,
-					}
-				*/
-				//lookupKey := m.ToLookupKey()
 				go GlobalCommandManager.ExecuteIfMapped(key)
 			}
 		}

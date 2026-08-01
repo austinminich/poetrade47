@@ -1,4 +1,4 @@
-package main
+package helpers
 
 import (
 	"log"
@@ -6,7 +6,7 @@ import (
 
 const debugMode = true
 
-func debugLog(format string, v ...any) {
+func DebugLog(format string, v ...any) {
 	if debugMode {
 		log.Printf("[DEBUG] "+format, v...)
 	}

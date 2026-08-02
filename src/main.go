@@ -44,12 +44,14 @@ func main() {
 	}
 
 	// Build settings page
-	settingsPage := ui.NewSettingsView()
+	settingsPage := ui.NewSettingsView(
+		GlobalScrollClicker.SetEnabled,
+		GlobalCommandManager.SyncMacros,
+	)
 	myWindow.SetContent(settingsPage.BuildSettingsLayout())
 
 	// Load Settings into memory
-	settingsPageCfg := settingsPage.GetSettingsConfig()
-	ApplySettingsConfig(settingsPageCfg)
+	// subscribe inputmanager to ui updates
 
 	myWindow.ShowAndRun()
 }

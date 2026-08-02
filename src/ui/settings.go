@@ -11,69 +11,57 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-type SettingsConfig struct {
-	ScrollClicker bool
-	Commands      []CommandEntry
-}
-
-type SettingsViewState struct {
+type SettingsView struct {
 	scrollClickerFeature bool
 	entries              []*CommandEntry
 	list                 *widget.List
+
+	//Callbacks
+	onCommandChanged        func(entries []CommandEntry)
+	onClickerFeatureChanged func(enabled bool)
 }
 
-func (s *SettingsViewState) BuildSettingsLayout() *fyne.Container {
+func (s *SettingsView) BuildSettingsLayout() *fyne.Container {
 	page := container.NewBorder(
 		container.NewVBox(
 			widget.NewLabelWithStyle("Inventory Utilities", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			widget.NewCheck("Enable Scroll Wheel -> Left click (stash)", func(isChecked bool) {
 				s.scrollClickerFeature = isChecked
+				s.notifyScrollClickerChanged(isChecked)
 			}),
 		), // top
 		container.NewHBox(widget.NewLabelWithStyle(
 			"Test Subject",
 			fyne.TextAlignCenter,
 			fyne.TextStyle{Bold: true})), // bottom
-		nil,                 // left
-		nil,                 // right
-		setupMacroSection(), // center
+		nil,                   // left
+		nil,                   // right
+		s.setupMacroSection(), // center
 	)
 
 	return page
 }
 
-func NewSettingsView() *SettingsViewState {
-	return &SettingsViewState{
-		scrollClickerFeature: false, // Default state
-		entries:              []*CommandEntry{},
+func NewSettingsView(onClickerCheck func(bool), onCmds func([]CommandEntry)) *SettingsView {
+	return &SettingsView{
+		scrollClickerFeature:    false, // Default state
+		entries:                 []*CommandEntry{},
+		onCommandChanged:        onCmds,
+		onClickerFeatureChanged: onClickerCheck,
 	}
 }
 
-func (s *SettingsViewState) GetSettingsConfig() SettingsConfig {
-	var validEntries []CommandEntry
-	for _, entry := range s.entries {
-		if entry.BindBttn.key != "" && entry.TextEntry.Text != "" {
-			validEntries = append(validEntries, *entry)
-		}
-	}
-
-	return SettingsConfig{
-		ScrollClicker: s.scrollClickerFeature,
-		Commands:      validEntries,
-	}
-}
-
-func setupMacroSection() fyne.CanvasObject {
-	macroListView, macros := buildMacroListUI()
+func (s *SettingsView) setupMacroSection() fyne.CanvasObject {
+	macroList := s.buildMacroList()
 
 	leftText := widget.NewLabelWithStyle("Macros", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	addBtn := widget.NewButton("Add Cmd", func() {
-		macros.Options = append(macros.Options, newCommandEntry())
-		macros.List.Refresh()
+		s.entries = append(s.entries, newCommandEntry())
+		s.list.Refresh()
 	})
 	header := container.NewBorder(nil, nil, leftText, addBtn, nil)
 
-	return container.NewBorder(header, nil, nil, nil, macroListView)
+	return container.NewBorder(header, nil, nil, nil, macroList)
 }
 
 type CommandEntry struct {
@@ -86,6 +74,7 @@ func newCommandEntry() *CommandEntry {
 	cmd := &CommandEntry{
 		BindBttn: &KeybindButton{},
 	}
+	helpers.DebugLog("Creating new CommandEntry...")
 
 	cmd.TextEntry = widget.NewEntry()
 	cmd.TextEntry.SetPlaceHolder("Text (ie. /hideout)")
@@ -111,24 +100,17 @@ func newCommandEntry() *CommandEntry {
 	})
 
 	// Pass directly to command manager
-	//GlobalCommandManager.AddOrUpdate(macro)
+	// GlobalCommandManager.AddOrUpdate(macro)
 	return cmd
 }
 
-type MacroState struct {
-	Options []*CommandEntry
-	List    *widget.List
-}
-
-func buildMacroListUI() (fyne.CanvasObject, *MacroState) {
-	state := &MacroState{
-		Options: []*CommandEntry{},
-	}
-	state.Options = append(state.Options, newCommandEntry())
+func (s *SettingsView) buildMacroList() fyne.CanvasObject {
+	helpers.DebugLog("Building custom list for macros...")
+	s.entries = append(s.entries, newCommandEntry())
 
 	list := widget.NewList(
 		func() int {
-			return len(state.Options)
+			return len(s.entries)
 		},
 		func() fyne.CanvasObject {
 			opt := newCommandEntry()
@@ -149,7 +131,7 @@ func buildMacroListUI() (fyne.CanvasObject, *MacroState) {
 			entry := rightPart.Objects[0].(*widget.Entry)
 			remBtn := rightPart.Objects[1].(*widget.Button)
 
-			opt := state.Options[id]
+			opt := s.entries[id]
 
 			// Sync bind btn
 			bindBtn.OnTapped = func() {
@@ -160,7 +142,7 @@ func buildMacroListUI() (fyne.CanvasObject, *MacroState) {
 			}
 			bindBtn.onBound = func(modifiers []string, key string) {
 				bindBtn.updateActiveLabel()
-				state.List.Refresh()
+				s.list.Refresh()
 			}
 			bindBtn.updateActiveLabel()
 
@@ -171,24 +153,62 @@ func buildMacroListUI() (fyne.CanvasObject, *MacroState) {
 
 			// Sync rem btn
 			remBtn.OnTapped = func() {
-				helpers.DebugLog("Attempting to remove command %v", state.Options[id].BindBttn.Text)
+				helpers.DebugLog("Attempting to remove command %v", s.entries[id].BindBttn.Text)
 				win := fyne.CurrentApp().Driver().AllWindows()[0]
 
 				dialog.ShowConfirm("Delete Hotkey?", "Remove this hotkey and command?", func(confirmed bool) {
 					if confirmed {
-						if id < 0 || id >= len(state.Options) {
+						if id < 0 || id >= len(s.entries) {
 							fmt.Printf("[ERROR] Attempted to remove a non-existant command @ id %v", id)
 							return
 						}
 						// Remove the item id from the backing slice
-						state.Options = append(state.Options[:id], state.Options[id+1:]...)
+						s.entries = append(s.entries[:id], s.entries[id+1:]...)
 						// refresh the renderer
-						state.List.Refresh()
-					}
+						s.list.Refresh()
 
+						// Fire Update Events
+						s.notifyCommandChanges()
+					} else {
+						helpers.DebugLog("User hit cancel on removing command %v", s.entries[id].TextEntry.Text)
+					}
 				}, win)
 			}
 		})
-	state.List = list
-	return list, state
+	s.list = list
+	return list
+}
+
+func (s *SettingsView) notifyScrollClickerChanged(isChecked bool) {
+	helpers.DebugLog("Notifying that scroll clicker has changed state...")
+	if s.onClickerFeatureChanged != nil {
+		s.onClickerFeatureChanged(isChecked)
+	}
+}
+
+func (s *SettingsView) notifyCommandChanges() {
+	helpers.DebugLog("Notifying that commands list has changed state...")
+	if s.onCommandChanged != nil {
+		s.onCommandChanged(s.GetCommandEntries())
+	}
+}
+
+func (s *SettingsView) GetCommandEntries() []CommandEntry {
+	helpers.DebugLog("Collecting valid command entries...")
+	validEntries := make([]CommandEntry, 0, len(s.entries))
+
+	for _, entry := range s.entries {
+		if entry == nil {
+			continue
+		}
+
+		cleanKey := strings.TrimSpace(entry.BindBttn.key)
+		cleanText := strings.TrimSpace(entry.TextEntry.Text)
+
+		if cleanKey != "" && cleanText != "" {
+			validEntries = append(validEntries, CommandEntry{})
+		}
+	}
+
+	return validEntries
 }

@@ -7,8 +7,10 @@ import (
 	"github.com/go-vgo/robotgo"
 )
 
+// Always needs to have a modifier active so we can keep track of it here
 type ScrollClicker struct {
-	enabled atomic.Bool
+	enabled      atomic.Bool
+	isModPressed atomic.Bool
 }
 
 var GlobalScrollClicker = &ScrollClicker{}
@@ -18,12 +20,21 @@ func (sc *ScrollClicker) SetEnabled(enable bool) {
 	helpers.DebugLog("ScrollClicker state changed: enabled = %v", enable)
 }
 
-func (sc *ScrollClicker) IsEnabled() bool {
-	return sc.enabled.Load()
+func (sc *ScrollClicker) SetModifierPressed(pressed bool) {
+	sc.isModPressed.Store(pressed)
+	helpers.DebugLog("ScrollClicker modifier pressed changed: pressed = %v", pressed)
+}
+
+func (sc *ScrollClicker) canTrigger() bool {
+	enabled := sc.enabled.Load()
+	mod := sc.isModPressed.Load()
+	//helpers.DebugLog("[CHECK] Enabled: %v, ModActive: %v", enabled, mod)
+	return enabled && mod
 }
 
 func (sc *ScrollClicker) TriggerClick() {
-	if sc.IsEnabled() {
+	if sc.canTrigger() {
+		//helpers.DebugLog("[CLICKER] Triggering robotgo.Click NOW...")
 		robotgo.Click("left")
 	}
 }

@@ -3,7 +3,12 @@ package main
 import (
 	"poetrade47/src/helpers"
 	"poetrade47/src/ui"
+	"sort"
+	"strings"
 	"sync"
+	"time"
+
+	"github.com/go-vgo/robotgo"
 )
 
 type CommandManager struct {
@@ -73,7 +78,7 @@ func (cm *CommandManager) Remove(macro FlexMacro) {
 
 // Checks if the command exists and executes it. Returns false if it doesn't exist
 func (cm *CommandManager) ExecuteIfMapped(lookupKey string) bool {
-	helpers.DebugLog("Handling input for key '%s'", lookupKey)
+	// helpers.DebugLog("Handling input for key '%s'", lookupKey)
 	cm.mu.RLock()
 	cmd, exists := cm.macros[lookupKey]
 	cm.mu.RUnlock()
@@ -114,4 +119,44 @@ func (cm *CommandManager) SyncMacros(cmds []ui.CommandEntry) {
 			}
 		}
 	*/
+}
+
+func (m *FlexMacro) ExecuteMacro() {
+	if !m.Enabled {
+		return
+	}
+
+	switch m.Type {
+	case ActionTextCommand:
+		// ie. /hideout
+		robotgo.KeyTap("enter")
+		time.Sleep(20 * time.Millisecond)
+		robotgo.Type(m.Payload)
+		time.Sleep(20 * time.Millisecond)
+		robotgo.KeyTap("enter")
+	case ActionKeySequence:
+		// ie. 1,2,3 for flasks
+		keys := helpers.ParseKeys(m.Payload)
+
+		for _, k := range keys {
+			robotgo.KeyTap(k)
+			if m.DelayMS > 0 {
+				robotgo.MilliSleep(m.DelayMS)
+			}
+		}
+	}
+	helpers.DebugLog("Attempting to execute macro: %+v", m)
+}
+
+func (m FlexMacro) ToLookupKey() string {
+	if len(m.Modifiers) == 0 {
+		return m.Key // e.g., "F2"
+	}
+
+	// Copy and sort to guarantee consistent ordering regardless of how it's stored
+	mods := make([]string, len(m.Modifiers))
+	copy(mods, m.Modifiers)
+	sort.Strings(mods)
+
+	return strings.Join(mods, "+") + "+" + m.Key // e.g., "Ctrl+Shift+F2"
 }

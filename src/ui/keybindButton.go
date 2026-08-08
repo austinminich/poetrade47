@@ -1,5 +1,11 @@
 package ui
 
+/*
+keybindButton.go is the UI keybind button that contains logic dealing with the UI
+	button element wrapped in a custom struct so that i can tap into the button's
+	attributes for ui changes
+*/
+
 import (
 	"poetrade47/src/helpers"
 	"strings"

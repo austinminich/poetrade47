@@ -1,8 +1,10 @@
 package main
 
 import (
+	"poetrade47/src/config"
 	"poetrade47/src/helpers"
 	"poetrade47/src/ui"
+
 	"sort"
 	"strings"
 	"sync"
@@ -11,9 +13,25 @@ import (
 	"github.com/go-vgo/robotgo"
 )
 
+type ActionType string
 type CommandManager struct {
 	mu     sync.RWMutex
 	macros map[string]FlexMacro
+}
+
+/*
+Name      string            `json:"name"`
+Modifiers []string          `json:"modifiers"`
+Key       string            `json:"key"`
+Type      config.ActionType `json:"type"`
+Payload   string            `json:"payload"`
+DelayMS   int               `json:"delay_ms"`
+Enabled   bool              `json:"enabled"`
+*/
+type FlexMacro struct {
+	cfg     config.FlexMacroSettings
+	Type    ActionType `json:"type"`
+	DelayMS int        `json:"delay_ms"`
 }
 
 var GlobalCommandManager = &CommandManager{
@@ -27,22 +45,10 @@ var (
 	isSupportedModMap  = map[string]bool{"ctrl": true, "shift": true, "alt": true}
 )
 
-type ActionType string
-
 const (
 	ActionTextCommand ActionType = "TextCommand" // '/hideout'
 	ActionKeySequence ActionType = "KeySequence" // 1, 2, 3
 )
-
-type FlexMacro struct {
-	Name      string     `json:"name"`
-	Modifiers []string   `json:"modifiers"`
-	Key       string     `json:"key"`
-	Type      ActionType `json:"type"`
-	Payload   string     `json:"payload"`
-	DelayMS   int        `json:"delay_ms"`
-	Enabled   bool       `json:"enabled"`
-}
 
 // func (cm *CommandManager) _() is saying that there is a CommandManager that
 // 		will call this function AND use it's pointer (only 1)
@@ -59,7 +65,7 @@ func (cm *CommandManager) AddOrUpdate(cmd FlexMacro) {
 
 	lookupKey := cmd.ToLookupKey()
 	cm.macros[lookupKey] = cmd
-	helpers.DebugLog("Registered command '%s' [key: %s]", cmd.Name, lookupKey)
+	helpers.DebugLog("Registered command '%s' [key: %s]", cmd.cfg.Name, lookupKey)
 }
 
 func (cm *CommandManager) Remove(macro FlexMacro) {
@@ -83,7 +89,7 @@ func (cm *CommandManager) ExecuteIfMapped(lookupKey string) bool {
 	cmd, exists := cm.macros[lookupKey]
 	cm.mu.RUnlock()
 
-	if !exists || !cmd.Enabled {
+	if !exists || !cmd.cfg.Enabled {
 		return false
 	}
 
@@ -122,7 +128,7 @@ func (cm *CommandManager) SyncMacros(cmds []ui.CommandEntry) {
 }
 
 func (m *FlexMacro) ExecuteMacro() {
-	if !m.Enabled {
+	if !m.cfg.Enabled {
 		return
 	}
 
@@ -131,12 +137,12 @@ func (m *FlexMacro) ExecuteMacro() {
 		// ie. /hideout
 		robotgo.KeyTap("enter")
 		time.Sleep(20 * time.Millisecond)
-		robotgo.Type(m.Payload)
+		robotgo.Type(m.cfg.Payload)
 		time.Sleep(20 * time.Millisecond)
 		robotgo.KeyTap("enter")
 	case ActionKeySequence:
 		// ie. 1,2,3 for flasks
-		keys := helpers.ParseKeys(m.Payload)
+		keys := helpers.ParseKeys(m.cfg.Payload)
 
 		for _, k := range keys {
 			robotgo.KeyTap(k)
@@ -149,14 +155,14 @@ func (m *FlexMacro) ExecuteMacro() {
 }
 
 func (m FlexMacro) ToLookupKey() string {
-	if len(m.Modifiers) == 0 {
-		return m.Key // e.g., "F2"
+	if len(m.cfg.Modifiers) == 0 {
+		return m.cfg.Key // e.g., "F2"
 	}
 
 	// Copy and sort to guarantee consistent ordering regardless of how it's stored
-	mods := make([]string, len(m.Modifiers))
-	copy(mods, m.Modifiers)
+	mods := make([]string, len(m.cfg.Modifiers))
+	copy(mods, m.cfg.Modifiers)
 	sort.Strings(mods)
 
-	return strings.Join(mods, "+") + "+" + m.Key // e.g., "Ctrl+Shift+F2"
+	return strings.Join(mods, "+") + "+" + m.cfg.Key // e.g., "Ctrl+Shift+F2"
 }

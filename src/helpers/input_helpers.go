@@ -1,5 +1,10 @@
 package helpers
 
+/*
+input_helpers.go contains runtime functions to deal with hardware input from the user,
+	as well as return information that is more cleanly useable in the app.
+*/
+
 import (
 	"fmt"
 	"strings"

@@ -1,5 +1,11 @@
 package helpers
 
+/*
+logger.go contains functions to help logging or debugging.
+
+TODO: add more functionality besides a simple "debugmode"
+*/
+
 import (
 	"log"
 )

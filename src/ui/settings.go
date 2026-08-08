@@ -1,7 +1,16 @@
 package ui
 
+/*
+settings.go is in charge of the layout and building of the UI for the settings
+	page within the app.
+
+Also has callback functions to notify the logic handlers that the ui on this page
+	has been updated.
+*/
+
 import (
 	"fmt"
+	"poetrade47/src/config"
 	"poetrade47/src/helpers"
 	"strings"
 
@@ -12,6 +21,7 @@ import (
 )
 
 type SettingsView struct {
+	cfg                  *config.Manager
 	scrollClickerFeature bool
 	entries              []*CommandEntry
 	list                 *widget.List
@@ -22,13 +32,21 @@ type SettingsView struct {
 }
 
 func (s *SettingsView) BuildSettingsLayout() *fyne.Container {
+	currentCfg := s.cfg.GetSettings()
+	clicker_checkBox := widget.NewCheck("Enable Scroll Wheel -> Left click (stash)", func(isChecked bool) {
+		s.cfg.Update(func(cfg *config.AppConfig) {
+			cfg.ScrollClickerEnabled = isChecked
+		})
+		s.scrollClickerFeature = isChecked
+		s.notifyScrollClickerChanged(isChecked)
+	})
+
+	clicker_checkBox.SetChecked(currentCfg.ScrollClickerEnabled)
+
 	page := container.NewBorder(
 		container.NewVBox(
 			widget.NewLabelWithStyle("Inventory Utilities", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			widget.NewCheck("Enable Scroll Wheel -> Left click (stash)", func(isChecked bool) {
-				s.scrollClickerFeature = isChecked
-				s.notifyScrollClickerChanged(isChecked)
-			}),
+			clicker_checkBox,
 		), // top
 		container.NewHBox(widget.NewLabelWithStyle(
 			"Test Subject",
@@ -42,12 +60,11 @@ func (s *SettingsView) BuildSettingsLayout() *fyne.Container {
 	return page
 }
 
-func NewSettingsView(onClickerCheck func(bool), onCmds func([]CommandEntry)) *SettingsView {
+func NewSettingsView(cfg *config.Manager) *SettingsView {
 	return &SettingsView{
-		scrollClickerFeature:    false, // Default state
-		entries:                 []*CommandEntry{},
-		onCommandChanged:        onCmds,
-		onClickerFeatureChanged: onClickerCheck,
+		cfg:                  cfg,
+		scrollClickerFeature: false, // Default state
+		entries:              []*CommandEntry{},
 	}
 }
 

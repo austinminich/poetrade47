@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"poetrade47/src/config"
 	"poetrade47/src/helpers"
 	"poetrade47/src/ui"
 
@@ -43,11 +44,15 @@ func main() {
 		myWindow.SetIcon(iconRes)
 	}
 
+	// Load settings saved from user
+	cfg := config.NewManager(trade47.Preferences())
+	initCfg := cfg.GetSettings()
+
+	GlobalScrollClicker.SetEnabled(initCfg.ScrollClickerEnabled)
+	// Set hotkeys by reading from preferences
+
 	// Build settings page
-	settingsPage := ui.NewSettingsView(
-		GlobalScrollClicker.SetEnabled,
-		GlobalCommandManager.SyncMacros,
-	)
+	settingsPage := ui.NewSettingsView(cfg)
 	myWindow.SetContent(settingsPage.BuildSettingsLayout())
 
 	// Load Settings into memory

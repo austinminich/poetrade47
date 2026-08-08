@@ -53,6 +53,8 @@ func main() {
 
 	// Build settings page
 	settingsPage := ui.NewSettingsView(cfg)
+	settingsPage.OnClickerFeatureChanged = GlobalScrollClicker.SetEnabled
+	settingsPage.OnCommandChanged = GlobalCommandManager.SyncMacros
 	myWindow.SetContent(settingsPage.BuildSettingsLayout())
 
 	// Load Settings into memory

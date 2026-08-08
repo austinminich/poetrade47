@@ -27,8 +27,8 @@ type SettingsView struct {
 	list                 *widget.List
 
 	//Callbacks
-	onCommandChanged        func(entries []CommandEntry)
-	onClickerFeatureChanged func(enabled bool)
+	OnCommandChanged        func(entries []CommandEntry)
+	OnClickerFeatureChanged func(enabled bool)
 }
 
 func (s *SettingsView) BuildSettingsLayout() *fyne.Container {
@@ -198,15 +198,15 @@ func (s *SettingsView) buildMacroList() fyne.CanvasObject {
 
 func (s *SettingsView) notifyScrollClickerChanged(isChecked bool) {
 	helpers.DebugLog("Notifying that scroll clicker has changed state...")
-	if s.onClickerFeatureChanged != nil {
-		s.onClickerFeatureChanged(isChecked)
+	if s.OnClickerFeatureChanged != nil {
+		s.OnClickerFeatureChanged(isChecked)
 	}
 }
 
 func (s *SettingsView) notifyCommandChanges() {
 	helpers.DebugLog("Notifying that commands list has changed state...")
-	if s.onCommandChanged != nil {
-		s.onCommandChanged(s.GetCommandEntries())
+	if s.OnCommandChanged != nil {
+		s.OnCommandChanged(s.GetCommandEntries())
 	}
 }
 

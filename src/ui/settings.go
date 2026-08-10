@@ -25,13 +25,18 @@ type SettingsView struct {
 	scrollClickerFeature bool
 	entries              []*CommandEntry
 	list                 *widget.List
+	page                 fyne.CanvasObject
 
 	//Callbacks
 	OnCommandChanged        func(entries []CommandEntry)
 	OnClickerFeatureChanged func(enabled bool)
 }
 
-func (s *SettingsView) BuildSettingsLayout() *fyne.Container {
+func (s *SettingsView) Canvas() fyne.CanvasObject {
+	return s.page
+}
+
+func (s *SettingsView) buildPage() fyne.CanvasObject {
 	currentCfg := s.cfg.GetSettings()
 	clicker_checkBox := widget.NewCheck("Enable Scroll Wheel -> Left click (stash)", func(isChecked bool) {
 		s.cfg.Update(func(cfg *config.AppConfig) {
@@ -61,11 +66,14 @@ func (s *SettingsView) BuildSettingsLayout() *fyne.Container {
 }
 
 func NewSettingsView(cfg *config.Manager) *SettingsView {
-	return &SettingsView{
+	s := &SettingsView{
 		cfg:                  cfg,
 		scrollClickerFeature: false, // Default state
 		entries:              []*CommandEntry{},
 	}
+
+	s.page = s.buildPage()
+	return s
 }
 
 func (s *SettingsView) setupMacroSection() fyne.CanvasObject {
@@ -74,6 +82,7 @@ func (s *SettingsView) setupMacroSection() fyne.CanvasObject {
 	leftText := widget.NewLabelWithStyle("Macros", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	addBtn := widget.NewButton("Add Cmd", func() {
 		s.entries = append(s.entries, newCommandEntry())
+		helpers.DebugLog("Creating new CommandEntry...")
 		s.list.Refresh()
 	})
 	header := container.NewBorder(nil, nil, leftText, addBtn, nil)
@@ -91,7 +100,6 @@ func newCommandEntry() *CommandEntry {
 	cmd := &CommandEntry{
 		BindBttn: &KeybindButton{},
 	}
-	helpers.DebugLog("Creating new CommandEntry...")
 
 	cmd.TextEntry = widget.NewEntry()
 	cmd.TextEntry.SetPlaceHolder("Text (ie. /hideout)")
@@ -116,8 +124,6 @@ func newCommandEntry() *CommandEntry {
 		helpers.DebugLog("Remove button: tapped")
 	})
 
-	// Pass directly to command manager
-	// GlobalCommandManager.AddOrUpdate(macro)
 	return cmd
 }
 

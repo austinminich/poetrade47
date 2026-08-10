@@ -55,7 +55,7 @@ func main() {
 	settingsPage := ui.NewSettingsView(cfg)
 	settingsPage.OnClickerFeatureChanged = GlobalScrollClicker.SetEnabled
 	settingsPage.OnCommandChanged = GlobalCommandManager.SyncMacros
-	myWindow.SetContent(settingsPage.BuildSettingsLayout())
+	myWindow.SetContent(settingsPage.Canvas())
 
 	// Load Settings into memory
 	// subscribe inputmanager to ui updates

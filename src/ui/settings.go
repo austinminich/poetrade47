@@ -91,48 +91,12 @@ func (s *SettingsView) setupMacroSection() fyne.CanvasObject {
 	return container.NewBorder(header, nil, nil, nil, macroList)
 }
 
-type ListEntry struct {
-	DrawBox    *fyne.Container
-	TextEntry  *widget.Entry
-	BindBttn   *KeybindButton
-	removeBttn *widget.Button
-}
-
-func newListEntry() *ListEntry {
-	entry := &ListEntry{
-		BindBttn: &KeybindButton{},
-	}
-
-	entry.TextEntry = widget.NewEntry()
-	entry.TextEntry.SetPlaceHolder("Text (ie. /hideout)")
-
-	entry.TextEntry.OnSubmitted = func(val string) {
-		if strings.TrimSpace(val) == "" && val != "" {
-			fyne.Do(func() {
-				helpers.DebugLog("Text entry had empty spaces. Set to have nothing")
-				entry.TextEntry.SetText("")
-			})
-		}
-		if val != "" || strings.TrimSpace(val) != "" {
-			helpers.DebugLog("TextEntry submitted with text")
-		}
-	}
-
-	entry.BindBttn = NewKeybindButton("Click to bind", func(mods []string, key string) {
-		// Update UI element of command entry if you want to change any visuals
-	})
-
-	entry.removeBttn = widget.NewButton("Remove", func() {
-		// Removing it, so no need to update the ui for this entry.
-	})
-
-	entry.DrawBox = container.NewBorder(nil, nil, entry.BindBttn, entry.removeBttn, entry.TextEntry)
-	return entry
-}
-
 func (s *SettingsView) buildMacroList() fyne.CanvasObject {
 	helpers.DebugLog("Building custom list for macros...")
-	s.entries = append(s.entries, newListEntry())
+
+	if len(s.entries) == 0 {
+		s.entries = append(s.entries, newListEntry())
+	}
 
 	list := widget.NewList(
 		func() int {
@@ -152,6 +116,12 @@ func (s *SettingsView) buildMacroList() fyne.CanvasObject {
 
 			opt := s.entries[id]
 
+			if opt.BindBttn != nil {
+				bindBtn.key = opt.BindBttn.key
+				bindBtn.modifiers = opt.BindBttn.modifiers
+				bindBtn.SetText(opt.BindBttn.Text)
+			}
+
 			// Sync bind btn
 			bindBtn.OnTapped = func() {
 				bindBtn.startListening()
@@ -159,22 +129,40 @@ func (s *SettingsView) buildMacroList() fyne.CanvasObject {
 					canvas.Focus(bindBtn)
 				}
 			}
-			bindBtn.onBound = func(modifiers []string, key string) {
+			bindBtn.onBound = func(modifiers map[string]bool, key string) {
+				if opt.BindBttn != nil {
+					opt.BindBttn.key = key
+					opt.BindBttn.modifiers = modifiers
+					opt.BindBttn.Text = "dummy test"
+				}
+				bindBtn.key = key
+				bindBtn.modifiers = modifiers
 				bindBtn.updateActiveLabel()
-				s.list.Refresh()
+
+				if opt.IsUpdated() {
+					s.notifyCommandChanges()
+				}
 			}
 			//bindBtn.updateActiveLabel()
 
 			// Sync entry
-			opt.TextEntry = entry
-			/*
+			entry.OnChanged = nil
+			if opt.TextEntry != nil {
 				entry.SetText(opt.TextEntry.Text)
-				entry.OnChanged = opt.TextEntry.OnChanged
-				entry.OnSubmitted = opt.TextEntry.OnSubmitted
-			*/
+			} else {
+				entry.SetText("")
+			}
+			entry.OnSubmitted = func(val string) {
+				opt.TextEntry.Text = entry.Text
+				if opt.TextEntry != nil {
+					opt.TextEntry.Text = val
+					if opt.IsUpdated() {
+						s.notifyCommandChanges()
+					}
+				}
+			}
 
 			// Sync rem btn
-			opt.removeBttn = remBtn
 			remBtn.OnTapped = func() {
 				helpers.DebugLog("Attempting to remove command %v", s.entries[id].BindBttn.Text)
 				win := fyne.CurrentApp().Driver().AllWindows()[0]
@@ -229,7 +217,7 @@ func (s *SettingsView) GetCommandEntries() []ListEntry {
 		cleanText := strings.TrimSpace(entry.TextEntry.Text)
 
 		if cleanKey != "" && cleanText != "" {
-			validEntries = append(validEntries, ListEntry{})
+			validEntries = append(validEntries, *entry)
 		}
 	}
 

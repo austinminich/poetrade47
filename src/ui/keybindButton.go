@@ -19,11 +19,11 @@ type KeybindButton struct {
 	isListening bool
 	modifiers   map[string]bool
 	key         string
-	onBound     func(modifiers []string, key string)
+	onBound     func(modifiers map[string]bool, key string)
 	window      fyne.Window
 }
 
-func NewKeybindButton(initialLabel string, onBound func(mods []string, key string)) *KeybindButton {
+func NewKeybindButton(initialLabel string, onBound func(mods map[string]bool, key string)) *KeybindButton {
 	k := &KeybindButton{
 		modifiers: make(map[string]bool),
 		onBound:   onBound,
@@ -36,13 +36,6 @@ func NewKeybindButton(initialLabel string, onBound func(mods []string, key strin
 	}
 	k.ExtendBaseWidget(k)
 	return k
-}
-
-func formatKeyLabel(mods []string, key string) string {
-	if len(mods) == 0 && key == "" {
-		return "Click to Bind Key"
-	}
-	return strings.ToUpper(strings.Join(mods, "+") + key)
 }
 
 func (k *KeybindButton) FocusGained() {}
@@ -104,10 +97,10 @@ func (k *KeybindButton) KeyDown(key *fyne.KeyEvent) {
 	k.key = strings.ToLower(string(key.Name))
 	k.updateActiveLabel()
 
-	var activeMods []string
+	var activeMods = make(map[string]bool)
 	for _, mod := range helpers.SupportedModifiers {
 		if k.modifiers[string(mod)] {
-			activeMods = append(activeMods, string(mod))
+			activeMods[string(mod)] = true
 		}
 	}
 

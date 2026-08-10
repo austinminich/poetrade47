@@ -23,12 +23,12 @@ import (
 type SettingsView struct {
 	cfg                  *config.Manager
 	scrollClickerFeature bool
-	entries              []*CommandEntry
+	entries              []*ListEntry
 	list                 *widget.List
 	page                 fyne.CanvasObject
 
 	//Callbacks
-	OnCommandChanged        func(entries []CommandEntry)
+	OnCommandChanged        func(entries []ListEntry)
 	OnClickerFeatureChanged func(enabled bool)
 }
 
@@ -69,7 +69,7 @@ func NewSettingsView(cfg *config.Manager) *SettingsView {
 	s := &SettingsView{
 		cfg:                  cfg,
 		scrollClickerFeature: false, // Default state
-		entries:              []*CommandEntry{},
+		entries:              []*ListEntry{},
 	}
 
 	s.page = s.buildPage()
@@ -81,34 +81,36 @@ func (s *SettingsView) setupMacroSection() fyne.CanvasObject {
 
 	leftText := widget.NewLabelWithStyle("Macros", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	addBtn := widget.NewButton("Add Cmd", func() {
-		s.entries = append(s.entries, newCommandEntry())
-		helpers.DebugLog("Creating new CommandEntry...")
+		s.entries = append(s.entries, newListEntry())
+		helpers.DebugLog("Creating new ListEntry...")
 		s.list.Refresh()
+		s.notifyCommandChanges()
 	})
 	header := container.NewBorder(nil, nil, leftText, addBtn, nil)
 
 	return container.NewBorder(header, nil, nil, nil, macroList)
 }
 
-type CommandEntry struct {
+type ListEntry struct {
+	DrawBox    *fyne.Container
 	TextEntry  *widget.Entry
 	BindBttn   *KeybindButton
 	removeBttn *widget.Button
 }
 
-func newCommandEntry() *CommandEntry {
-	cmd := &CommandEntry{
+func newListEntry() *ListEntry {
+	entry := &ListEntry{
 		BindBttn: &KeybindButton{},
 	}
 
-	cmd.TextEntry = widget.NewEntry()
-	cmd.TextEntry.SetPlaceHolder("Text (ie. /hideout)")
+	entry.TextEntry = widget.NewEntry()
+	entry.TextEntry.SetPlaceHolder("Text (ie. /hideout)")
 
-	cmd.TextEntry.OnSubmitted = func(val string) {
+	entry.TextEntry.OnSubmitted = func(val string) {
 		if strings.TrimSpace(val) == "" && val != "" {
 			fyne.Do(func() {
 				helpers.DebugLog("Text entry had empty spaces. Set to have nothing")
-				cmd.TextEntry.SetText("")
+				entry.TextEntry.SetText("")
 			})
 		}
 		if val != "" || strings.TrimSpace(val) != "" {
@@ -116,43 +118,37 @@ func newCommandEntry() *CommandEntry {
 		}
 	}
 
-	cmd.BindBttn = NewKeybindButton("Click to bind", func(mods []string, key string) {
-
+	entry.BindBttn = NewKeybindButton("Click to bind", func(mods []string, key string) {
+		// Update UI element of command entry if you want to change any visuals
 	})
 
-	cmd.removeBttn = widget.NewButton("Remove", func() {
-		helpers.DebugLog("Remove button: tapped")
+	entry.removeBttn = widget.NewButton("Remove", func() {
+		// Removing it, so no need to update the ui for this entry.
 	})
 
-	return cmd
+	entry.DrawBox = container.NewBorder(nil, nil, entry.BindBttn, entry.removeBttn, entry.TextEntry)
+	return entry
 }
 
 func (s *SettingsView) buildMacroList() fyne.CanvasObject {
 	helpers.DebugLog("Building custom list for macros...")
-	s.entries = append(s.entries, newCommandEntry())
+	s.entries = append(s.entries, newListEntry())
 
 	list := widget.NewList(
 		func() int {
 			return len(s.entries)
 		},
 		func() fyne.CanvasObject {
-			opt := newCommandEntry()
-
-			rightPart := container.NewHBox(
-				opt.TextEntry,
-				opt.removeBttn,
-			)
-			return container.NewBorder(nil, nil, opt.BindBttn, nil, rightPart)
+			opt := newListEntry()
+			return opt.DrawBox
 		},
 		func(id widget.ListItemID, item fyne.CanvasObject) {
 			borderContainer := item.(*fyne.Container)
 
 			// Extract our button box and entry from border container
 			bindBtn := borderContainer.Objects[1].(*KeybindButton)
-			rightPart := borderContainer.Objects[0].(*fyne.Container)
-
-			entry := rightPart.Objects[0].(*widget.Entry)
-			remBtn := rightPart.Objects[1].(*widget.Button)
+			entry := borderContainer.Objects[0].(*widget.Entry)
+			remBtn := borderContainer.Objects[2].(*widget.Button)
 
 			opt := s.entries[id]
 
@@ -167,14 +163,18 @@ func (s *SettingsView) buildMacroList() fyne.CanvasObject {
 				bindBtn.updateActiveLabel()
 				s.list.Refresh()
 			}
-			bindBtn.updateActiveLabel()
+			//bindBtn.updateActiveLabel()
 
 			// Sync entry
-			entry.SetText(opt.TextEntry.Text)
-			entry.OnChanged = opt.TextEntry.OnChanged
-			entry.OnSubmitted = opt.TextEntry.OnSubmitted
+			opt.TextEntry = entry
+			/*
+				entry.SetText(opt.TextEntry.Text)
+				entry.OnChanged = opt.TextEntry.OnChanged
+				entry.OnSubmitted = opt.TextEntry.OnSubmitted
+			*/
 
 			// Sync rem btn
+			opt.removeBttn = remBtn
 			remBtn.OnTapped = func() {
 				helpers.DebugLog("Attempting to remove command %v", s.entries[id].BindBttn.Text)
 				win := fyne.CurrentApp().Driver().AllWindows()[0]
@@ -216,9 +216,9 @@ func (s *SettingsView) notifyCommandChanges() {
 	}
 }
 
-func (s *SettingsView) GetCommandEntries() []CommandEntry {
+func (s *SettingsView) GetCommandEntries() []ListEntry {
 	helpers.DebugLog("Collecting valid command entries...")
-	validEntries := make([]CommandEntry, 0, len(s.entries))
+	validEntries := make([]ListEntry, 0, len(s.entries))
 
 	for _, entry := range s.entries {
 		if entry == nil {
@@ -229,7 +229,7 @@ func (s *SettingsView) GetCommandEntries() []CommandEntry {
 		cleanText := strings.TrimSpace(entry.TextEntry.Text)
 
 		if cleanKey != "" && cleanText != "" {
-			validEntries = append(validEntries, CommandEntry{})
+			validEntries = append(validEntries, ListEntry{})
 		}
 	}
 

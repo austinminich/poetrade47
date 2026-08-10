@@ -98,9 +98,11 @@ func (cm *CommandManager) ExecuteIfMapped(lookupKey string) bool {
 	return true
 }
 
-func (cm *CommandManager) SyncMacros(cmds []ui.CommandEntry) {
+func (cm *CommandManager) SyncMacros(cmds []ui.ListEntry) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
+
+	helpers.DebugLog("Updating CommandManager data...")
 
 	// Tear down listeners
 	//cm.clearActiveHooks()

@@ -56,6 +56,7 @@ func (k *KeybindButton) TypedRune(rune)          {}
 func (k *KeybindButton) TypedKey(*fyne.KeyEvent) {}
 
 func (k *KeybindButton) startListening() {
+	helpers.DebugLog("Binding button...")
 	k.isListening = true
 	k.modifiers = make(map[string]bool)
 	k.key = ""
@@ -66,6 +67,8 @@ func (k *KeybindButton) startListening() {
 			k.SetText("Press key combo...")
 			k.window.Canvas().Focus(k)
 		})
+	} else {
+		helpers.DebugLog("[ERROR] Failed to find a canvas!")
 	}
 }
 
@@ -75,6 +78,7 @@ func (k *KeybindButton) stopListening() {
 		fyne.Do(func() {
 			k.SetText("Unbound")
 		})
+		helpers.DebugLog("Finished bind. Bind is empty.")
 	}
 }
 
@@ -108,6 +112,7 @@ func (k *KeybindButton) KeyDown(key *fyne.KeyEvent) {
 	}
 
 	if k.onBound != nil {
+		helpers.DebugLog("KeybindButton finished bind. Calling onBound func.")
 		k.onBound(activeMods, k.key)
 	}
 
@@ -133,13 +138,12 @@ func (k *KeybindButton) updateActiveLabel() {
 	} else {
 		parts = append(parts, "Press key...")
 	}
+
 	fyne.Do(func() {
 		k.SetText(strings.Join(parts, " + "))
 	})
 
 }
-
-// #endregion
 
 func getActiveCanvas(obj fyne.CanvasObject) fyne.Canvas {
 	// 1. Try resolving via object hierarchy

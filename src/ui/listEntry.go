@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"poetrade47/src/config"
 	"poetrade47/src/helpers"
 	"strings"
 
@@ -18,7 +19,7 @@ type ListEntry struct {
 	isListening bool
 }
 
-func newListEntry() *ListEntry {
+func newListEntry(opts ...config.FlexMacroSettings) *ListEntry {
 	entry := &ListEntry{
 		BindBttn: &KeybindButton{},
 	}
@@ -45,6 +46,19 @@ func newListEntry() *ListEntry {
 	entry.removeBttn = widget.NewButton("Remove", func() {
 		// Removing it, so no need to update the ui for this entry.
 	})
+
+	if len(opts) > 0 {
+		cmd := opts[0]
+		entry.TextEntry.SetText(cmd.Payload)
+		entry.BindBttn.key = cmd.Key
+		entry.BindBttn.modifiers = make(map[string]bool)
+		for _, mod := range cmd.Modifiers {
+			if mod != "" {
+				entry.BindBttn.modifiers[mod] = true
+			}
+		}
+		entry.BindBttn.updateActiveLabel()
+	}
 
 	entry.DrawBox = container.NewBorder(nil, nil, entry.BindBttn, entry.removeBttn, entry.TextEntry)
 	return entry

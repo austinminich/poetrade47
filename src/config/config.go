@@ -7,6 +7,7 @@ Config.go is responsible for the logic revolving around the serialization of
 
 import (
 	"encoding/json"
+	"poetrade47/src/helpers"
 	"sync"
 
 	"fyne.io/fyne/v2"
@@ -38,7 +39,7 @@ func defaultConfig() AppConfig {
 
 type Manager struct {
 	mu   sync.RWMutex
-	cfg  AppConfig
+	Cfg  AppConfig
 	pref fyne.Preferences
 }
 
@@ -52,10 +53,11 @@ func (m *Manager) Load() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.cfg = defaultConfig()
+	m.Cfg = defaultConfig()
 	rawJSON := m.pref.StringWithFallback("app_config", "")
 	if rawJSON != "" {
-		_ = json.Unmarshal([]byte(rawJSON), &m.cfg)
+		helpers.DebugLog("Found saved settings. Loading preferences...")
+		_ = json.Unmarshal([]byte(rawJSON), &m.Cfg)
 	}
 }
 
@@ -63,17 +65,19 @@ func (m *Manager) GetSettings() AppConfig {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	return m.cfg
+	return m.Cfg
 }
 
 func (m *Manager) Update(fn func(cfg *AppConfig)) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	fn(&m.cfg)
+	fn(&m.Cfg)
 
-	data, err := json.Marshal(m.cfg)
+	data, err := json.Marshal(m.Cfg)
 	if err == nil {
 		m.pref.SetString("app_config", string(data))
+	} else {
+		helpers.DebugLog("Failed to update preferences: ", err)
 	}
 }

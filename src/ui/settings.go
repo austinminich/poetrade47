@@ -28,7 +28,7 @@ type SettingsView struct {
 	page                 fyne.CanvasObject
 
 	//Callbacks
-	OnCommandChanged        func(entries []ListEntry)
+	OnCommandChanged        func(entries []config.FlexMacroSettings)
 	OnClickerFeatureChanged func(enabled bool)
 }
 
@@ -93,6 +93,12 @@ func (s *SettingsView) setupMacroSection() fyne.CanvasObject {
 
 func (s *SettingsView) buildMacroList() fyne.CanvasObject {
 	helpers.DebugLog("Building custom list for macros...")
+	if len(s.cfg.GetSettings().SavedMacros) > 0 {
+		helpers.DebugLog("Settings detected saved macros. Initalizing list...")
+		for _, entry := range s.cfg.GetSettings().SavedMacros {
+			s.entries = append(s.entries, newListEntry(entry))
+		}
+	}
 
 	if len(s.entries) == 0 {
 		s.entries = append(s.entries, newListEntry())
@@ -137,7 +143,6 @@ func (s *SettingsView) buildMacroList() fyne.CanvasObject {
 				}
 				bindBtn.key = key
 				bindBtn.modifiers = modifiers
-				//bindBtn.updateActiveLabel()
 
 				if opt.IsUpdated() {
 					s.notifyCommandChanges()
@@ -200,7 +205,26 @@ func (s *SettingsView) notifyScrollClickerChanged(isChecked bool) {
 func (s *SettingsView) notifyCommandChanges() {
 	helpers.DebugLog("Notifying that commands list has changed state...")
 	if s.OnCommandChanged != nil {
-		s.OnCommandChanged(s.GetCommandEntries())
+		// Convert list of entries to a list of commands
+		cmds := []config.FlexMacroSettings{}
+
+		for _, entry := range s.GetCommandEntries() {
+			macro := config.FlexMacroSettings{
+				Modifiers: entry.BindBttn.GetModifiers(),
+				Key:       entry.BindBttn.key,
+				Payload:   entry.TextEntry.Text,
+				Enabled:   true, // default on if it's in the UI
+			}
+
+			cmds = append(cmds, macro)
+		}
+
+		// Update the save state
+		s.cfg.Update(func(c *config.AppConfig) {
+			c.SavedMacros = cmds
+		})
+
+		s.OnCommandChanged(cmds)
 	}
 }
 

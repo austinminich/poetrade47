@@ -49,6 +49,7 @@ func main() {
 	initCfg := cfg.GetSettings()
 
 	GlobalScrollClicker.SetEnabled(initCfg.ScrollClickerEnabled)
+	GlobalCommandManager.SyncMacros(cfg.GetSettings().SavedMacros)
 	// Set hotkeys by reading from preferences
 
 	// Build settings page

@@ -3,7 +3,6 @@ package main
 import (
 	"poetrade47/src/config"
 	"poetrade47/src/helpers"
-	"poetrade47/src/ui"
 
 	"sort"
 	"strings"
@@ -53,21 +52,6 @@ const (
 // func (cm *CommandManager) _() is saying that there is a CommandManager that
 // 		will call this function AND use it's pointer (only 1)
 
-// Add or update commands
-func (cm *CommandManager) AddOrUpdate(cmd FlexMacro) {
-	cm.mu.Lock()
-	defer cm.mu.Unlock()
-
-	// Saftey net
-	if cm.macros == nil {
-		cm.macros = make(map[string]FlexMacro)
-	}
-
-	lookupKey := cmd.ToLookupKey()
-	cm.macros[lookupKey] = cmd
-	helpers.DebugLog("Registered command '%s' [key: %s]", cmd.cfg.Payload, lookupKey)
-}
-
 func (cm *CommandManager) Remove(macro FlexMacro) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
@@ -98,7 +82,7 @@ func (cm *CommandManager) ExecuteIfMapped(lookupKey string) bool {
 	return true
 }
 
-func (cm *CommandManager) SyncMacros(entries []ui.ListEntry) {
+func (cm *CommandManager) SyncMacros(entries []config.FlexMacroSettings) {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
 
@@ -120,31 +104,26 @@ func (cm *CommandManager) SyncMacros(entries []ui.ListEntry) {
 		clear(cm.macros)
 	}
 
-	// convert each ui entry into macro and re-register
 	for _, entry := range entries {
-		if strings.TrimSpace(entry.BindBttn.Text) == "" ||
-			strings.TrimSpace(entry.TextEntry.Text) == "" {
+		// build modifiers + key string for the map key
+		mapKey := ""
+		if len(entry.Modifiers) > 0 {
+			mapKey = strings.Join(entry.Modifiers, "+") + "+" + entry.Key
+		} else {
+			mapKey = entry.Key
+		}
+
+		if mapKey == "" {
 			continue
 		}
 
-		macro := FlexMacro{
-			Type:    ActionTextCommand, // TODO: Figure out how to make this matter
+		cm.macros[mapKey] = FlexMacro{
+			cfg:     entry,
+			Type:    ActionTextCommand,
 			DelayMS: 1,
-			//Name      string     `json:"name"`
-			//Modifiers []string   `json:"modifiers"`
-			//Key       string     `json:"key"`
-			//Type      ActionType `json:"type"`
-			//Payload   string     `json:"payload"`
-			cfg: config.FlexMacroSettings{
-				Modifiers: entry.BindBttn.GetModifiers(),
-				Key:       entry.BindBttn.GetKey(),
-				Payload:   entry.TextEntry.Text,
-				Enabled:   true,
-			},
 		}
-
-		cm.macros[entry.BindBttn.Text] = macro
 	}
+
 }
 
 func (m *FlexMacro) ExecuteMacro() {

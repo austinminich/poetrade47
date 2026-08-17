@@ -7,7 +7,9 @@ keybindButton.go is the UI keybind button that contains logic dealing with the U
 */
 
 import (
+	"maps"
 	"poetrade47/src/helpers"
+	"slices"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -36,6 +38,15 @@ func NewKeybindButton(initialLabel string, onBound func(mods map[string]bool, ke
 	}
 	k.ExtendBaseWidget(k)
 	return k
+}
+
+func (b *KeybindButton) GetKey() string {
+	return b.key
+}
+
+func (b *KeybindButton) GetModifiers() []string {
+	ret := slices.Collect(maps.Keys(b.modifiers))
+	return ret
 }
 
 func (k *KeybindButton) FocusGained() {}

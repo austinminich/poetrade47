@@ -13,7 +13,7 @@ import (
 )
 
 type FlexMacroSettings struct {
-	Name      string   `json:"name"`
+	//Name      string   `json:"name"`
 	Modifiers []string `json:"modifiers"`
 	Key       string   `json:"key"`
 	Payload   string   `json:"payload"`

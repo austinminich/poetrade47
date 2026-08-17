@@ -65,7 +65,7 @@ func (cm *CommandManager) AddOrUpdate(cmd FlexMacro) {
 
 	lookupKey := cmd.ToLookupKey()
 	cm.macros[lookupKey] = cmd
-	helpers.DebugLog("Registered command '%s' [key: %s]", cmd.cfg.Name, lookupKey)
+	helpers.DebugLog("Registered command '%s' [key: %s]", cmd.cfg.Payload, lookupKey)
 }
 
 func (cm *CommandManager) Remove(macro FlexMacro) {
@@ -99,34 +99,52 @@ func (cm *CommandManager) ExecuteIfMapped(lookupKey string) bool {
 }
 
 func (cm *CommandManager) SyncMacros(entries []ui.ListEntry) {
-	cm.mu.Lock()
-	defer cm.mu.Unlock()
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
 
 	helpers.DebugLog("Updating CommandManager data...")
+	// entries is the UI entry that is in the custom list
+	// for each entry data,
+	// grab the keybind button's data
+	// grab the text label data
+	// build FlexMacro
+	// Store flexMacro
 
 	// Tear down listeners
 	//cm.clearActiveHooks()
 
-	// clear out existing macros
-	//cm.macros = nil
+	// clear out existing macros if it exists, make otherwise
+	if cm.macros == nil {
+		cm.macros = make(map[string]FlexMacro)
+	} else {
+		clear(cm.macros)
+	}
+
 	// convert each ui entry into macro and re-register
-	/*
-		for i, entry := range cmds {
-			if strings.Trimspace(entry.BindBttn.Text) == "" ||
-				strings.TrimSpace(entry.TextEntry.Text) == "" {
-				continue
-			}
-			macro := FlexMacro{
-				//Name      string     `json:"name"`
-				//Modifiers []string   `json:"modifiers"`
-				//Key       string     `json:"key"`
-				//Type      ActionType `json:"type"`
-				//Payload   string     `json:"payload"`
-				Name:      entry.TextEntry.Text,
-				Modifiers: entry.BindBttn,
-			}
+	for _, entry := range entries {
+		if strings.TrimSpace(entry.BindBttn.Text) == "" ||
+			strings.TrimSpace(entry.TextEntry.Text) == "" {
+			continue
 		}
-	*/
+
+		macro := FlexMacro{
+			Type:    ActionTextCommand, // TODO: Figure out how to make this matter
+			DelayMS: 1,
+			//Name      string     `json:"name"`
+			//Modifiers []string   `json:"modifiers"`
+			//Key       string     `json:"key"`
+			//Type      ActionType `json:"type"`
+			//Payload   string     `json:"payload"`
+			cfg: config.FlexMacroSettings{
+				Modifiers: entry.BindBttn.GetModifiers(),
+				Key:       entry.BindBttn.GetKey(),
+				Payload:   entry.TextEntry.Text,
+				Enabled:   true,
+			},
+		}
+
+		cm.macros[entry.BindBttn.Text] = macro
+	}
 }
 
 func (m *FlexMacro) ExecuteMacro() {

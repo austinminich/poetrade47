@@ -133,17 +133,17 @@ func (s *SettingsView) buildMacroList() fyne.CanvasObject {
 				if opt.BindBttn != nil {
 					opt.BindBttn.key = key
 					opt.BindBttn.modifiers = modifiers
-					opt.BindBttn.Text = "dummy test"
+					opt.BindBttn.Text = bindBtn.Text
 				}
 				bindBtn.key = key
 				bindBtn.modifiers = modifiers
-				bindBtn.updateActiveLabel()
+				//bindBtn.updateActiveLabel()
 
 				if opt.IsUpdated() {
 					s.notifyCommandChanges()
 				}
 			}
-			//bindBtn.updateActiveLabel()
+			bindBtn.updateActiveLabel()
 
 			// Sync entry
 			entry.OnChanged = nil

@@ -116,17 +116,43 @@ func (s *SettingsView) buildMacroList() fyne.CanvasObject {
 			borderContainer := item.(*fyne.Container)
 
 			// Extract our button box and entry from border container
-			bindBtn := borderContainer.Objects[1].(*KeybindButton)
-			entry := borderContainer.Objects[0].(*widget.Entry)
-			remBtn := borderContainer.Objects[2].(*widget.Button)
+			if len(borderContainer.Objects) < 3 {
+				return
+			}
+
+			bindBtn, ok := borderContainer.Objects[1].(*KeybindButton)
+			if !ok {
+				return
+			}
+
+			entry, ok := borderContainer.Objects[0].(*widget.Entry)
+			if !ok {
+				return
+			}
+
+			remBtn, ok := borderContainer.Objects[2].(*widget.Button)
+			if !ok {
+				return
+			}
 
 			opt := s.entries[id]
-
-			if opt.BindBttn != nil {
-				bindBtn.key = opt.BindBttn.key
-				bindBtn.modifiers = opt.BindBttn.modifiers
-				bindBtn.SetText(opt.BindBttn.Text)
+			if opt == nil || opt.BindBttn == nil {
+				bindBtn.key = ""
+				bindBtn.modifiers = map[string]bool{}
+				bindBtn.SetText("Click to bind")
+				return
 			}
+
+			if opt.BindBttn.key == "" && len(opt.BindBttn.modifiers) == 0 {
+				bindBtn.key = ""
+				bindBtn.modifiers = map[string]bool{}
+				bindBtn.SetText("Click to bind")
+				return
+			}
+
+			bindBtn.key = opt.BindBttn.key
+			bindBtn.modifiers = opt.BindBttn.modifiers
+			bindBtn.SetText(opt.BindBttn.Text)
 
 			// Sync bind btn
 			bindBtn.OnTapped = func() {

@@ -60,6 +60,7 @@ func StartInputManager(stopChan <-chan struct{}) {
 			if !isPoEActive() {
 				continue
 			}
+			helpers.DebugLog("PoE in focus")
 
 			// Event dispatcher
 			switch ev.Kind {

@@ -83,9 +83,6 @@ func (cm *CommandManager) ExecuteIfMapped(lookupKey string) bool {
 }
 
 func (cm *CommandManager) SyncMacros(entries []config.FlexMacroSettings) {
-	cm.mu.RLock()
-	defer cm.mu.RUnlock()
-
 	helpers.DebugLog("Updating CommandManager data...")
 	// entries is the UI entry that is in the custom list
 	// for each entry data,
@@ -96,13 +93,7 @@ func (cm *CommandManager) SyncMacros(entries []config.FlexMacroSettings) {
 
 	// Tear down listeners
 	//cm.clearActiveHooks()
-
-	// clear out existing macros if it exists, make otherwise
-	if cm.macros == nil {
-		cm.macros = make(map[string]FlexMacro)
-	} else {
-		clear(cm.macros)
-	}
+	newMacros := make(map[string]FlexMacro, len(entries))
 
 	for _, entry := range entries {
 		// build modifiers + key string for the map key
@@ -117,13 +108,16 @@ func (cm *CommandManager) SyncMacros(entries []config.FlexMacroSettings) {
 			continue
 		}
 
-		cm.macros[mapKey] = FlexMacro{
+		newMacros[mapKey] = FlexMacro{
 			cfg:     entry,
 			Type:    ActionTextCommand,
 			DelayMS: 1,
 		}
 	}
 
+	cm.mu.Lock()
+	cm.macros = newMacros
+	cm.mu.Unlock()
 }
 
 func (m *FlexMacro) ExecuteMacro() {

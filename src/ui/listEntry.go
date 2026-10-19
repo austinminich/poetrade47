@@ -49,15 +49,18 @@ func newListEntry(opts ...config.FlexMacroSettings) *ListEntry {
 
 	if len(opts) > 0 {
 		cmd := opts[0]
-		entry.TextEntry.SetText(cmd.Payload)
-		entry.BindBttn.key = cmd.Key
-		entry.BindBttn.modifiers = make(map[string]bool)
-		for _, mod := range cmd.Modifiers {
-			if mod != "" {
-				entry.BindBttn.modifiers[mod] = true
+
+		if entry.IsEmpty() {
+			entry.TextEntry.SetText(cmd.Payload)
+			entry.BindBttn.key = cmd.Key
+			entry.BindBttn.modifiers = make(map[string]bool)
+			for _, mod := range cmd.Modifiers {
+				if mod != "" {
+					entry.BindBttn.modifiers[mod] = true
+				}
 			}
+			entry.BindBttn.updateActiveLabel()
 		}
-		entry.BindBttn.updateActiveLabel()
 	}
 
 	entry.DrawBox = container.NewBorder(nil, nil, entry.BindBttn, entry.removeBttn, entry.TextEntry)
@@ -71,4 +74,11 @@ func (e *ListEntry) IsUpdated() bool {
 		return true
 	}
 	return false
+}
+
+func (e *ListEntry) IsEmpty() bool {
+	if e == nil || e.TextEntry == nil || e.BindBttn == nil {
+		return false
+	}
+	return true
 }

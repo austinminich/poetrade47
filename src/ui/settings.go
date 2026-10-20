@@ -92,9 +92,11 @@ func (s *SettingsView) setupMacroSection() fyne.CanvasObject {
 
 func (s *SettingsView) buildMacroList() fyne.CanvasObject {
 	helpers.DebugLog("Building custom list for macros...")
-	if len(s.cfg.GetSettings().SavedMacros) > 0 {
+	savedMacros := s.cfg.GetSettings().SavedMacros
+
+	if len(savedMacros) > 0 {
 		helpers.DebugLog("Settings detected saved macros. Initalizing list...")
-		for _, entry := range s.cfg.GetSettings().SavedMacros {
+		for _, entry := range savedMacros {
 			s.entries = append(s.entries, newListEntry(entry))
 		}
 	}
@@ -179,18 +181,7 @@ func (s *SettingsView) buildMacroList() fyne.CanvasObject {
 			entry.SetText(opt.TextEntry.Text)
 			entry.OnChanged = func(value string) {
 				opt.TextEntry.SetText(value)
-				if opt.IsUpdated() {
-					s.notifyCommandChanges()
-				}
-			}
-			entry.OnSubmitted = func(val string) {
-				if opt.TextEntry == nil {
-					return
-				}
-				opt.TextEntry.SetText(val)
-				if opt.IsUpdated() {
-					s.notifyCommandChanges()
-				}
+				s.notifyCommandChanges()
 			}
 
 			// Sync rem btn

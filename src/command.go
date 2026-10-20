@@ -4,8 +4,6 @@ import (
 	"poetrade47/src/config"
 	"poetrade47/src/helpers"
 
-	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -18,15 +16,6 @@ type CommandManager struct {
 	macros map[string]FlexMacro
 }
 
-/*
-Name      string            `json:"name"`
-Modifiers []string          `json:"modifiers"`
-Key       string            `json:"key"`
-Type      config.ActionType `json:"type"`
-Payload   string            `json:"payload"`
-DelayMS   int               `json:"delay_ms"`
-Enabled   bool              `json:"enabled"`
-*/
 type FlexMacro struct {
 	cfg     config.FlexMacroSettings
 	Type    ActionType `json:"type"`
@@ -37,20 +26,10 @@ var GlobalCommandManager = &CommandManager{
 	macros: make(map[string]FlexMacro),
 }
 
-var (
-	modMu              sync.RWMutex
-	activeModsMap      = make(map[string]bool)
-	SupportedModifiers = []string{helpers.ModCtrl, helpers.ModShift, helpers.ModAlt}
-	isSupportedModMap  = map[string]bool{"ctrl": true, "shift": true, "alt": true}
-)
-
 const (
 	ActionTextCommand ActionType = "TextCommand" // '/hideout'
 	ActionKeySequence ActionType = "KeySequence" // 1, 2, 3
 )
-
-// func (cm *CommandManager) _() is saying that there is a CommandManager that
-// 		will call this function AND use it's pointer (only 1)
 
 func (cm *CommandManager) Remove(macro FlexMacro) {
 	cm.mu.Lock()
@@ -62,7 +41,7 @@ func (cm *CommandManager) Remove(macro FlexMacro) {
 	}
 
 	lookupKey := macro.ToLookupKey()
-	delete(cm.macros, macro.ToLookupKey())
+	delete(cm.macros, lookupKey)
 	helpers.DebugLog("Removed macro under lookupkey: %s", lookupKey)
 }
 
@@ -97,12 +76,7 @@ func (cm *CommandManager) SyncMacros(entries []config.FlexMacroSettings) {
 
 	for _, entry := range entries {
 		// build modifiers + key string for the map key
-		mapKey := ""
-		if len(entry.Modifiers) > 0 {
-			mapKey = strings.Join(entry.Modifiers, "+") + "+" + entry.Key
-		} else {
-			mapKey = entry.Key
-		}
+		mapKey := helpers.MakeLookupKey(entry.Modifiers, entry.Key)
 
 		if mapKey == "" {
 			continue
@@ -154,14 +128,5 @@ func (m *FlexMacro) ExecuteMacro() {
 }
 
 func (m FlexMacro) ToLookupKey() string {
-	if len(m.cfg.Modifiers) == 0 {
-		return m.cfg.Key // e.g., "F2"
-	}
-
-	// Copy and sort to guarantee consistent ordering regardless of how it's stored
-	mods := make([]string, len(m.cfg.Modifiers))
-	copy(mods, m.cfg.Modifiers)
-	sort.Strings(mods)
-
-	return strings.Join(mods, "+") + "+" + m.cfg.Key // e.g., "Ctrl+Shift+F2"
+	return helpers.MakeLookupKey(m.cfg.Modifiers, m.cfg.Key)
 }

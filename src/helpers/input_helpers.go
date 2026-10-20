@@ -7,6 +7,7 @@ input_helpers.go contains runtime functions to deal with hardware input from the
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -20,7 +21,6 @@ const (
 
 var (
 	SupportedModifiers = []string{ModCtrl, ModShift, ModAlt}
-	isSupportedModMap  = map[string]bool{"ctrl": true, "shift": true, "alt": true}
 )
 
 func SolveKeycode(code uint16) (bool, string) {
@@ -42,30 +42,59 @@ func SolveKeycode(code uint16) (bool, string) {
 }
 
 func IsFyneModifier(key fyne.KeyName) bool {
-	// key should be a string that you can just check against
-	k := strings.ToLower(string(key))
+	_, ok := NormalizeModifier(string(key))
+	return ok
+}
+
+func NormalizeModifier(mod string) (string, bool) {
+	mod = strings.ToLower(strings.TrimSpace(mod))
+
 	switch {
-	case strings.Contains(k, "shift"),
-		strings.Contains(k, "control"),
-		strings.Contains(k, "alt"):
-		return true
+	case mod == ModCtrl, strings.Contains(mod, "control"): // Checks for ctrl mod first then if not, checks if the string contains "control" (ie. Control_L, Control_R)
+		return ModCtrl, true
+	case mod == ModShift || strings.Contains(mod, "shift"):
+		return ModShift, true
+	case mod == ModAlt || strings.Contains(mod, "alt"):
+		return ModAlt, true
 	default:
-		return false
+		return "", false
 	}
 }
 
-func CleanFyneModifierName(key fyne.KeyName) string {
-	k := strings.ToLower(string(key))
-	switch {
-	case strings.Contains(k, "shift"):
-		return "shift"
-	case strings.Contains(k, "control"):
-		return "ctrl"
-	case strings.Contains(k, "alt"):
-		return "alt"
-	default:
-		return k
+func MakeLookupKey(mods []string, key string) string {
+	// Normalize the key to lowercase
+	key = strings.ToLower(strings.TrimSpace(key))
+	if key == "" {
+		return ""
 	}
+
+	normalized := make([]string, 0, len(mods))
+	seen := make(map[string]bool, len(mods))
+	for _, mod := range mods {
+		mod, ok := NormalizeModifier(mod)
+		if !ok {
+			return ""
+		}
+		if !seen[mod] {
+			seen[mod] = true
+			normalized = append(normalized, mod)
+		}
+	}
+
+	// Sort the normalized modifiers to ensure consistent ordering
+	sort.Strings(normalized)
+	if len(normalized) == 0 {
+		return key
+	}
+	return strings.Join(normalized, "+") + "+" + key
+}
+
+func CleanFyneModifierName(key fyne.KeyName) string {
+	mod, ok := NormalizeModifier(string(key))
+	if !ok {
+		return ""
+	}
+	return mod
 }
 
 func ParseKeys(s string) []string {

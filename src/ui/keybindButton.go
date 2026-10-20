@@ -90,8 +90,8 @@ func (k *KeybindButton) KeyUp(key *fyne.KeyEvent) {
 	if !k.isListening {
 		return
 	}
-	if helpers.IsFyneModifier(key.Name) {
-		delete(k.modifiers, helpers.CleanFyneModifierName(key.Name))
+	if modifier, ok := helpers.NormalizeModifier(string(key.Name)); ok {
+		delete(k.modifiers, modifier)
 		k.updateActiveLabel()
 	}
 }
@@ -100,8 +100,8 @@ func (k *KeybindButton) KeyDown(key *fyne.KeyEvent) {
 	if !k.isListening {
 		return
 	}
-	if helpers.IsFyneModifier(key.Name) {
-		k.modifiers[helpers.CleanFyneModifierName(key.Name)] = true
+	if modifier, ok := helpers.NormalizeModifier(string(key.Name)); ok {
+		k.modifiers[modifier] = true
 		k.updateActiveLabel()
 		return
 	}

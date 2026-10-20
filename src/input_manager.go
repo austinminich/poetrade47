@@ -49,6 +49,17 @@ func StartInputManager(stopChan <-chan struct{}) {
 		hook.End()
 	}()
 
+	activeMods := make(map[string]bool)
+	currentModifiers := func() []string {
+		modifiers := make([]string, 0, len(activeMods))
+		for mod, pressed := range activeMods {
+			if pressed {
+				modifiers = append(modifiers, mod)
+			}
+		}
+		return modifiers
+	}
+
 	for {
 		select {
 		case <-stopChan:
@@ -57,10 +68,14 @@ func StartInputManager(stopChan <-chan struct{}) {
 			if !ok {
 				return
 			}
-			if !isPoEActive() {
+
+			poeInFocus := isPoEActive()
+			if !poeInFocus && ev.Kind != hook.KeyUp {
 				continue
 			}
-			helpers.DebugLog("PoE in focus")
+			if poeInFocus {
+				helpers.DebugLog("PoE in focus.")
+			}
 
 			// Event dispatcher
 			switch ev.Kind {
@@ -74,17 +89,27 @@ func StartInputManager(stopChan <-chan struct{}) {
 					key = strings.ToLower(string(ev.Keychar))
 				}
 				if isMod {
-					helpers.DebugLog("MODIFIER keydown: %s", key)
-					GlobalScrollClicker.SetModifierPressed(true)
+					if modifier, ok := helpers.NormalizeModifier(key); ok {
+						activeMods[modifier] = true
+						helpers.DebugLog("MODIFIER pressed: %s", modifier)
+						GlobalScrollClicker.SetModifierPressed(activeMods[helpers.ModCtrl])
+					}
 					continue
 				}
-				go GlobalCommandManager.ExecuteIfMapped(key)
+
+				lookupKey := helpers.MakeLookupKey(currentModifiers(), key)
+				if lookupKey != "" {
+					go GlobalCommandManager.ExecuteIfMapped(lookupKey)
+				}
 			// To reset mod is released
 			case hook.KeyUp:
-				isMod, _ := helpers.SolveKeycode(ev.Rawcode)
+				isMod, key := helpers.SolveKeycode(ev.Rawcode)
 				if isMod {
-					helpers.DebugLog("MODIFIER released")
-					GlobalScrollClicker.SetModifierPressed(false)
+					if modifier, ok := helpers.NormalizeModifier(key); ok {
+						helpers.DebugLog("Modifier released: %s", modifier)
+						delete(activeMods, modifier)
+						GlobalScrollClicker.SetModifierPressed(activeMods[helpers.ModCtrl])
+					}
 				}
 			case hook.MouseWheel:
 				if GlobalScrollClicker.canTrigger() {

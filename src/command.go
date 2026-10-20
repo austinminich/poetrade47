@@ -46,19 +46,17 @@ func (cm *CommandManager) Remove(macro FlexMacro) {
 }
 
 // Checks if the command exists and executes it. Returns false if it doesn't exist
-func (cm *CommandManager) ExecuteIfMapped(lookupKey string) bool {
+func (cm *CommandManager) Lookup(lookupKey string) (FlexMacro, bool) {
 	// helpers.DebugLog("Handling input for key '%s'", lookupKey)
 	cm.mu.RLock()
 	cmd, exists := cm.macros[lookupKey]
 	cm.mu.RUnlock()
 
 	if !exists || !cmd.cfg.Enabled {
-		return false
+		return FlexMacro{}, false
 	}
 
-	cmd.ExecuteMacro()
-
-	return true
+	return cmd, true
 }
 
 func (cm *CommandManager) SyncMacros(entries []config.FlexMacroSettings) {
@@ -107,9 +105,19 @@ func (m *FlexMacro) ExecuteMacro() {
 			return
 		}
 
-		time.Sleep(20 * time.Millisecond)
+		// Clear any text already in the chat input.
+		if err := robotgo.KeyTap("a", "ctrl"); err != nil {
+			helpers.DebugLog("Could not select game chat text: %v", err)
+			return
+		}
+		if err := robotgo.KeyTap("backspace"); err != nil {
+			helpers.DebugLog("Could not clear game chat text: %v", err)
+			return
+		}
+
+		time.Sleep(5 * time.Millisecond)
 		robotgo.Type(m.cfg.Payload)
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(5 * time.Millisecond)
 		if err := robotgo.KeyTap("enter"); err != nil {
 			helpers.DebugLog("Could not submit game command: %v", err)
 		}

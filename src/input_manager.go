@@ -10,6 +10,11 @@ import (
 	hook "github.com/robotn/gohook"
 )
 
+type pendingMacro struct {
+	macro     FlexMacro
+	modifiers []string
+}
+
 // Global flag for lock-free focus checks
 var poeFocused atomic.Bool
 
@@ -50,12 +55,13 @@ func StartInputManager(stopChan <-chan struct{}) {
 	}()
 
 	activeMods := make(map[string]bool)
+	downKeys := make(map[uint16]bool)
+	pending := make([]pendingMacro, 0)
+
 	currentModifiers := func() []string {
 		modifiers := make([]string, 0, len(activeMods))
-		for mod, pressed := range activeMods {
-			if pressed {
-				modifiers = append(modifiers, mod)
-			}
+		for modifier := range activeMods {
+			modifiers = append(modifiers, modifier)
 		}
 		return modifiers
 	}
@@ -69,12 +75,15 @@ func StartInputManager(stopChan <-chan struct{}) {
 				return
 			}
 
-			poeInFocus := isPoEActive()
-			if !poeInFocus && ev.Kind != hook.KeyUp {
+			poeActive := isPoEActive()
+
+			if !poeActive {
+				// Clear all state when PoE is not focused
+				clear(activeMods)
+				clear(downKeys)
+				pending = pending[:0]
+				GlobalScrollClicker.SetModifierPressed(false)
 				continue
-			}
-			if poeInFocus {
-				helpers.DebugLog("PoE in focus.")
 			}
 
 			// Event dispatcher
@@ -83,11 +92,6 @@ func StartInputManager(stopChan <-chan struct{}) {
 			// Handler
 			case hook.KeyDown:
 				isMod, key := helpers.SolveKeycode(ev.Rawcode)
-				helpers.DebugLog("Keydown detected: %s", key)
-				if key == "" {
-					helpers.DebugLog("Key '%s' was found to be empty?", key)
-					key = strings.ToLower(string(ev.Keychar))
-				}
 				if isMod {
 					if modifier, ok := helpers.NormalizeModifier(key); ok {
 						activeMods[modifier] = true
@@ -97,20 +101,67 @@ func StartInputManager(stopChan <-chan struct{}) {
 					continue
 				}
 
-				lookupKey := helpers.MakeLookupKey(currentModifiers(), key)
-				if lookupKey != "" {
-					go GlobalCommandManager.ExecuteIfMapped(lookupKey)
+				// Ignore key-repeat events while this physical key remains held.
+				if downKeys[ev.Rawcode] {
+					continue
 				}
-			// To reset mod is released
+				downKeys[ev.Rawcode] = true
+
+				if key == "" {
+					key = strings.ToLower(string(ev.Keychar))
+				}
+
+				modifiers := currentModifiers()
+				lookupKey := helpers.MakeLookupKey(modifiers, key)
+				macro, found := GlobalCommandManager.Lookup(lookupKey)
+				if !found {
+					continue
+				}
+
+				if len(modifiers) == 0 {
+					go macro.ExecuteMacro()
+					continue
+				}
+
+				pending = append(pending, pendingMacro{
+					macro:     macro,
+					modifiers: append([]string(nil), modifiers...),
+				})
+
 			case hook.KeyUp:
+				delete(downKeys, ev.Rawcode)
+
 				isMod, key := helpers.SolveKeycode(ev.Rawcode)
-				if isMod {
-					if modifier, ok := helpers.NormalizeModifier(key); ok {
-						helpers.DebugLog("Modifier released: %s", modifier)
-						delete(activeMods, modifier)
-						GlobalScrollClicker.SetModifierPressed(activeMods[helpers.ModCtrl])
+				if !isMod {
+					continue
+				}
+
+				modifier, ok := helpers.NormalizeModifier(key)
+				if !ok {
+					continue
+				}
+				delete(activeMods, modifier)
+				GlobalScrollClicker.SetModifierPressed(activeMods[helpers.ModCtrl])
+
+				remaining := pending[:0]
+				for _, item := range pending {
+					stillHeld := false
+					for _, required := range item.modifiers {
+						if activeMods[required] {
+							stillHeld = true
+							break
+						}
+					}
+
+					if stillHeld {
+						remaining = append(remaining, item)
+					} else {
+						macro := item.macro
+						go macro.ExecuteMacro()
 					}
 				}
+				pending = remaining
+
 			case hook.MouseWheel:
 				if GlobalScrollClicker.canTrigger() {
 					GlobalScrollClicker.TriggerClick()

@@ -31,6 +31,7 @@ jobs:
             libxkbcommon-x11-dev \
             libx11-xcb-dev \
             libxcb-xkb-dev \
+            libwayland-dev \
             x11-xkb-utils
 
       - name: Install appimagetool
@@ -77,13 +78,21 @@ jobs:
       - name: Test and build Windows executable
         shell: msys2 {0}
         run: |
-          export GOOS=windows
-          export GOARCH=amd64
-          export CGO_ENABLED=1
-          export CC=gcc
-          export CXX=g++
-          go test ./...
-          make windows
+        GO_EXE="$(where.exe go | head -n1 | tr -d '\r')"
+        if [ -z "$GO_EXE" ]; then
+          echo "Go was not found on the Windows PATH"
+          exit 1
+        fi
+        GO_BIN="$(cygpath -u "$GO_EXE")"
+        export PATH="$(dirname "$GO_BIN"):$PATH"
+        go version
+        export GOOS=windows
+        export GOARCH=amd64
+        export CGO_ENABLED=1
+        export CC=gcc
+        export CXX=g++
+        go test ./...
+        make windows
 
       - name: Upload Windows executable
         uses: actions/upload-artifact@v4

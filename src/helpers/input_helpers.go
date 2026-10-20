@@ -24,6 +24,10 @@ var (
 )
 
 func SolveKeycode(code uint16) (bool, string) {
+	if code >= 0xFFBE && code <= 0xFFC9 {
+		return false, fmt.Sprintf("f%d", code-0xFFBD)
+	}
+
 	switch code {
 	// Shift, Ctrl, Alt
 	case 65505:

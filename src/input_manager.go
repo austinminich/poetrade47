@@ -94,27 +94,3 @@ func StartInputManager(stopChan <-chan struct{}) {
 		}
 	}
 }
-
-/*
-
-func (m *FlexMacro) DisplayTrigger() string {
-	if len(m.Modifiers) == 0 {
-		return strings.ToUpper(m.Key)
-	}
-	var formattedMods []string
-	for _, mod := range m.Modifiers {
-		formattedMods = append(formattedMods, mod)
-	}
-	return strings.Join(formattedMods, " + ") + " + " + strings.ToUpper(m.Key)
-}
-
-func StartKeyboardEngine(onKeyPress func(string)) {
-	evChan := hook.Start()
-	defer hook.End()
-
-	for ev := range evChan {
-		fmt.Println("Received event: ", ev, " ")
-	}
-}
-
-*/

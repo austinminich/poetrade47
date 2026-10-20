@@ -9,7 +9,6 @@ Also has callback functions to notify the logic handlers that the ui on this pag
 */
 
 import (
-	"fmt"
 	"poetrade47/src/config"
 	"poetrade47/src/helpers"
 	"strings"
@@ -135,11 +134,11 @@ func (s *SettingsView) buildMacroList() fyne.CanvasObject {
 				return
 			}
 
+			if id < 0 || id >= len(s.entries) {
+				return
+			}
 			opt := s.entries[id]
-			if opt == nil || opt.BindBttn == nil {
-				bindBtn.key = ""
-				bindBtn.modifiers = map[string]bool{}
-				bindBtn.SetText("Click to bind")
+			if opt == nil || opt.BindBttn == nil || opt.TextEntry == nil {
 				return
 			}
 
@@ -147,12 +146,11 @@ func (s *SettingsView) buildMacroList() fyne.CanvasObject {
 				bindBtn.key = ""
 				bindBtn.modifiers = map[string]bool{}
 				bindBtn.SetText("Click to bind")
-				return
+			} else {
+				bindBtn.key = opt.BindBttn.key
+				bindBtn.modifiers = opt.BindBttn.modifiers
+				bindBtn.updateActiveLabel()
 			}
-
-			bindBtn.key = opt.BindBttn.key
-			bindBtn.modifiers = opt.BindBttn.modifiers
-			bindBtn.SetText(opt.BindBttn.Text)
 
 			// Sync bind btn
 			bindBtn.OnTapped = func() {
@@ -174,47 +172,47 @@ func (s *SettingsView) buildMacroList() fyne.CanvasObject {
 					s.notifyCommandChanges()
 				}
 			}
-			bindBtn.updateActiveLabel()
+			// bindBtn.updateActiveLabel()
 
 			// Sync entry
 			entry.OnChanged = nil
-			if opt.TextEntry != nil {
-				entry.SetText(opt.TextEntry.Text)
-			} else {
-				entry.SetText("")
+			entry.SetText(opt.TextEntry.Text)
+			entry.OnChanged = func(value string) {
+				opt.TextEntry.SetText(value)
+				if opt.IsUpdated() {
+					s.notifyCommandChanges()
+				}
 			}
 			entry.OnSubmitted = func(val string) {
-				opt.TextEntry.Text = entry.Text
-				if opt.TextEntry != nil {
-					opt.TextEntry.Text = val
-					if opt.IsUpdated() {
-						s.notifyCommandChanges()
-					}
+				if opt.TextEntry == nil {
+					return
+				}
+				opt.TextEntry.SetText(val)
+				if opt.IsUpdated() {
+					s.notifyCommandChanges()
 				}
 			}
 
 			// Sync rem btn
 			remBtn.OnTapped = func() {
-				helpers.DebugLog("Attempting to remove command %v", s.entries[id].BindBttn.Text)
-				win := fyne.CurrentApp().Driver().AllWindows()[0]
+				windows := fyne.CurrentApp().Driver().AllWindows()
+				if len(windows) == 0 {
+					return
+				}
 
 				dialog.ShowConfirm("Delete Hotkey?", "Remove this hotkey and command?", func(confirmed bool) {
-					if confirmed {
-						if id < 0 || id >= len(s.entries) {
-							fmt.Printf("[ERROR] Attempted to remove a non-existant command @ id %v", id)
+					if !confirmed {
+						return
+					}
+					for index, current := range s.entries {
+						if current == opt {
+							s.entries = append(s.entries[:index], s.entries[index+1:]...)
+							s.list.Refresh()
+							s.notifyCommandChanges()
 							return
 						}
-						// Remove the item id from the backing slice
-						s.entries = append(s.entries[:id], s.entries[id+1:]...)
-						// refresh the renderer
-						s.list.Refresh()
-
-						// Fire Update Events
-						s.notifyCommandChanges()
-					} else {
-						helpers.DebugLog("User hit cancel on removing command %v", s.entries[id].TextEntry.Text)
 					}
-				}, win)
+				}, windows[0])
 			}
 		})
 	s.list = list

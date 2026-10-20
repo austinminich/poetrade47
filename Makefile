@@ -1,9 +1,8 @@
 APP_NAME=poetrade47
 BUILD_DIR=build
 APP_DIR=poetrade47.AppDir
-GO_FILES=main.go \
-	ui.go \
-	hotkeys.go
+APP_PACKAGE=./src
+
 
 .PHONY: all linux windows clean
 
@@ -14,7 +13,7 @@ all: linux windows
 linux:
 	@echo "--- Building Linux AppImage ---"
 	mkdir -p $(APP_DIR)/usr/bin
-	go build -o $(APP_DIR)/usr/bin/$(APP_NAME) $(GO_FILES)
+	go build -o $(APP_DIR)/usr/bin/$(APP_NAME) $(APP_PACKAGE)
 	ln -rsf $(APP_DIR)/usr/bin/$(APP_NAME) $(APP_DIR)/AppRun
 	mkdir -p $(BUILD_DIR)/linux
 	ARCH=x86_64 appimagetool $(APP_DIR) $(BUILD_DIR)/linux/$(APP_NAME)-x86_64.AppImage
@@ -24,7 +23,7 @@ linux:
 windows:
 	@echo "--- Building Windows Executable ---"
 	mkdir -p $(BUILD_DIR)/windows
-	GOOS=windows GOARCH=amd64 go build -o $(BUILD_DIR)/windows/$(APP_NAME).exe $(GO_FILES)
+	GOOS=windows GOARCH=amd64 go build -o $(BUILD_DIR)/windows/$(APP_NAME).exe $(APP_PACKAGE)
 
 # Wipe out build files to start fresh
 clean:

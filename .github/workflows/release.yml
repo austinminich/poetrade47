@@ -1,0 +1,128 @@
+on:
+  push:
+    tags:
+      - "v*"
+permissions:
+  contents: write
+
+jobs:
+  linux:
+    name: Build Linux AppImage
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.27.1"
+          cache-dependency-path: go.sum
+
+      - name: Install Linux build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            libgl1-mesa-dev \
+            xorg-dev \
+            libxtst-dev \
+            libxkbcommon-dev \
+            libxkbcommon-x11-dev \
+            libx11-xcb-dev \
+            libxcb-xkb-dev \
+            x11-xkb-utils
+
+      - name: Install appimagetool
+        run: |
+          curl -L \
+            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage \
+            -o appimagetool
+          chmod +x appimagetool
+          echo "$PWD" >> "$GITHUB_PATH"
+
+      - name: Test Go packages
+        run: go test ./...
+
+      - name: Build AppImage
+        run: make linux
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-appimage
+          path: build/linux/poetrade47-x86_64.AppImage
+          if-no-files-found: error
+
+  windows:
+    name: Build Windows executable
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up MSYS2 and MinGW
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: mingw-w64-ucrt-x86_64-gcc make
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.27.1"
+          cache-dependency-path: go.sum
+
+      - name: Test and build Windows executable
+        shell: msys2 {0}
+        run: |
+          export GOOS=windows
+          export GOARCH=amd64
+          export CGO_ENABLED=1
+          export CC=gcc
+          export CXX=g++
+          go test ./...
+          make windows
+
+      - name: Upload Windows executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-executable
+          path: build/windows/poetrade47.exe
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs:
+      - linux
+      - windows
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download AppImage
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-appimage
+          path: release-assets
+
+      - name: Download Windows executable
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-executable
+          path: release-assets
+
+      - name: Create release and attach files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          release_flags=(--title "$TAG_NAME" --generate-notes)
+
+          if [[ "$TAG_NAME" == *-* ]]; then
+            release_flags+=(--prerelease)
+          fi
+
+          gh release create "$TAG_NAME" \
+            "${release_flags[@]}" \
+            release-assets/poetrade47-x86_64.AppImage \
+            release-assets/poetrade47.exe

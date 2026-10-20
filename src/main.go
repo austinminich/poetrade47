@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"fmt"
 	"poetrade47/src/config"
 	"poetrade47/src/helpers"
@@ -12,6 +13,8 @@ import (
 	hook "github.com/robotn/gohook"
 )
 
+//go:embed resources/cheesecake47.jpg
+var icon []byte
 var trade47 fyne.App
 
 func main() {
@@ -36,13 +39,9 @@ func main() {
 	myWindow.Resize(fyne.NewSize(720, 720))
 
 	// Load resources
-	iconRes, err := fyne.LoadResourceFromPath("../resources/cheesecake47.jpg")
-	if err != nil || iconRes == nil {
-		fmt.Println("[WARN] Failed to load app icon.")
-	} else {
-		trade47.SetIcon(iconRes)
-		myWindow.SetIcon(iconRes)
-	}
+	iconRes := fyne.NewStaticResource("cheesecake47.jpg", icon)
+	trade47.SetIcon(iconRes)
+	myWindow.SetIcon(iconRes)
 
 	// Load settings saved from user
 	cfg := config.NewManager(trade47.Preferences())

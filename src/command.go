@@ -128,11 +128,17 @@ func (m *FlexMacro) ExecuteMacro() {
 	switch m.Type {
 	case ActionTextCommand:
 		// ie. /hideout
-		robotgo.KeyTap("enter")
+		if err := robotgo.KeyTap("enter"); err != nil {
+			helpers.DebugLog("Could not open game chat: %v", err)
+			return
+		}
+
 		time.Sleep(20 * time.Millisecond)
 		robotgo.Type(m.cfg.Payload)
 		time.Sleep(20 * time.Millisecond)
-		robotgo.KeyTap("enter")
+		if err := robotgo.KeyTap("enter"); err != nil {
+			helpers.DebugLog("Could not submit game command: %v", err)
+		}
 	case ActionKeySequence:
 		// ie. 1,2,3 for flasks
 		keys := helpers.ParseKeys(m.cfg.Payload)

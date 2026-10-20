@@ -36,7 +36,7 @@ go.work.sum
 /squashfs-root/
 /poetrade47.AppDir/AppRun
 /poetrade47.AppDir/usr/bin/poetrade47
-poetrade47.desktop
+/poetrade47.desktop
 
 ## Runtime image is a source asset
 resources/*

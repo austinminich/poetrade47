@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=PoeTrade47
+Exec=AppRun
+Icon=poetrade47
+Terminal=false
+Categories=Utility;
+StartupWMClass=cheesecake47.poetrade

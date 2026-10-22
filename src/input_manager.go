@@ -18,9 +18,10 @@ type pendingMacro struct {
 // Global flag for lock-free focus checks
 var poeFocused atomic.Bool
 
-func StartFocusTracker(stopChan <-chan struct{}) {
+func StartFocusTracker(stopChan <-chan struct{}, onFocusChange func(bool)) {
 	ticker := time.NewTicker(300 * time.Millisecond)
 	defer ticker.Stop()
+	firstCheck := true
 
 	for {
 		select {
@@ -31,17 +32,16 @@ func StartFocusTracker(stopChan <-chan struct{}) {
 			title := robotgo.GetTitle()
 			isPoe := strings.Contains(title, "Path of Exile")
 
-			if isPoe != poeFocused.Load() {
+			if firstCheck || isPoe != poeFocused.Load() {
 				helpers.DebugLog("Focus state changed: PoE active = %v", isPoe)
 				poeFocused.Store(isPoe)
-				// GlobalScrollClicker.SetModifierPressed(false)
+				if onFocusChange != nil {
+					onFocusChange(isPoe)
+				}
+				firstCheck = false
 			}
 		}
 	}
-}
-
-func isPoEActive() bool {
-	return poeFocused.Load()
 }
 
 // Manages single global input listener loop
@@ -75,7 +75,7 @@ func StartInputManager(stopChan <-chan struct{}) {
 				return
 			}
 
-			poeActive := isPoEActive()
+			poeActive := poeFocused.Load()
 
 			if !poeActive {
 				// Clear all state when PoE is not focused

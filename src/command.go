@@ -12,8 +12,9 @@ import (
 
 type ActionType string
 type CommandManager struct {
-	mu     sync.RWMutex
-	macros map[string]FlexMacro
+	mu       sync.RWMutex
+	macros   map[string]FlexMacro
+	builtIns map[string]FlexMacro
 }
 
 type FlexMacro struct {
@@ -29,6 +30,8 @@ var GlobalCommandManager = &CommandManager{
 const (
 	ActionTextCommand ActionType = "TextCommand" // '/hideout'
 	ActionKeySequence ActionType = "KeySequence" // 1, 2, 3
+	ActionLogout      ActionType = "Logout"      // Logout keybind
+	logoutChatCommand string     = "/exit"
 )
 
 func (cm *CommandManager) Remove(macro FlexMacro) {
@@ -50,6 +53,9 @@ func (cm *CommandManager) Lookup(lookupKey string) (FlexMacro, bool) {
 	// helpers.DebugLog("Handling input for key '%s'", lookupKey)
 	cm.mu.RLock()
 	cmd, exists := cm.macros[lookupKey]
+	if !exists {
+		cmd, exists = cm.builtIns[lookupKey]
+	}
 	cm.mu.RUnlock()
 
 	if !exists || !cmd.cfg.Enabled {
@@ -100,27 +106,7 @@ func (m *FlexMacro) ExecuteMacro() {
 	switch m.Type {
 	case ActionTextCommand:
 		// ie. /hideout
-		if err := robotgo.KeyTap("enter"); err != nil {
-			helpers.DebugLog("Could not open game chat: %v", err)
-			return
-		}
-
-		// Clear any text already in the chat input.
-		if err := robotgo.KeyTap("a", "ctrl"); err != nil {
-			helpers.DebugLog("Could not select game chat text: %v", err)
-			return
-		}
-		if err := robotgo.KeyTap("backspace"); err != nil {
-			helpers.DebugLog("Could not clear game chat text: %v", err)
-			return
-		}
-
-		time.Sleep(5 * time.Millisecond)
-		robotgo.Type(m.cfg.Payload)
-		time.Sleep(5 * time.Millisecond)
-		if err := robotgo.KeyTap("enter"); err != nil {
-			helpers.DebugLog("Could not submit game command: %v", err)
-		}
+		m.ExecuteTextCommand(m.cfg.Payload)
 	case ActionKeySequence:
 		// ie. 1,2,3 for flasks
 		keys := helpers.ParseKeys(m.cfg.Payload)
@@ -131,10 +117,60 @@ func (m *FlexMacro) ExecuteMacro() {
 				robotgo.MilliSleep(m.DelayMS)
 			}
 		}
+	case ActionLogout:
+		// TODO: Implement port closing for poe to dc you
+		m.ExecuteTextCommand(logoutChatCommand)
 	}
 	helpers.DebugLog("Attempting to execute macro: %+v", m)
 }
 
+func (m *FlexMacro) ExecuteTextCommand(payload string) {
+	if err := robotgo.KeyTap("enter"); err != nil {
+		helpers.DebugLog("Could not open game chat: %v", err)
+		return
+	}
+
+	// Clear any text already in the chat input.
+	if err := robotgo.KeyTap("a", "ctrl"); err != nil {
+		helpers.DebugLog("Could not select game chat text: %v", err)
+		return
+	}
+	if err := robotgo.KeyTap("backspace"); err != nil {
+		helpers.DebugLog("Could not clear game chat text: %v", err)
+		return
+	}
+
+	time.Sleep(5 * time.Millisecond)
+	robotgo.Type(payload)
+	time.Sleep(5 * time.Millisecond)
+	if err := robotgo.KeyTap("enter"); err != nil {
+		helpers.DebugLog("Could not submit game command: %v", err)
+	}
+}
+
 func (m FlexMacro) ToLookupKey() string {
 	return helpers.MakeLookupKey(m.cfg.Modifiers, m.cfg.Key)
+}
+
+func (cm *CommandManager) SetLogoutBinding(binding config.HotkeyBinding) {
+	lookupKey := helpers.MakeLookupKey(binding.Modifiers, binding.Key)
+
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	cm.builtIns = make(map[string]FlexMacro)
+	if lookupKey == "" {
+		return
+	}
+
+	cm.builtIns[lookupKey] = FlexMacro{
+		cfg: config.FlexMacroSettings{
+			Key:       binding.Key,
+			Modifiers: binding.Modifiers,
+			Enabled:   true,
+		},
+		Type:    ActionLogout,
+		DelayMS: 1,
+	}
+
 }

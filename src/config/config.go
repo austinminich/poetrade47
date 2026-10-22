@@ -13,6 +13,11 @@ import (
 	"fyne.io/fyne/v2"
 )
 
+type HotkeyBinding struct {
+	Modifiers []string `json:"modifiers"`
+	Key       string   `json:"key"`
+}
+
 type FlexMacroSettings struct {
 	//Name      string   `json:"name"`
 	Modifiers []string `json:"modifiers"`
@@ -26,6 +31,7 @@ type AppConfig struct {
 	SelectedModifier     string
 	OverlayOpacity       float64
 	SavedMacros          []FlexMacroSettings
+	LogoutBinding        HotkeyBinding
 }
 
 func defaultConfig() AppConfig {

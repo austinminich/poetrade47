@@ -25,10 +25,14 @@ type SettingsView struct {
 	entries              []*ListEntry
 	list                 *widget.List
 	page                 fyne.CanvasObject
+	logoutBinding        config.HotkeyBinding
+	logoutBindButton     *KeybindButton
 
 	//Callbacks
 	OnCommandChanged        func(entries []config.FlexMacroSettings)
 	OnClickerFeatureChanged func(enabled bool)
+	OnStatusChanged         func(message string)
+	OnLogoutBindingChanged  func(binding config.HotkeyBinding)
 }
 
 func (s *SettingsView) Canvas() fyne.CanvasObject {
@@ -51,11 +55,8 @@ func (s *SettingsView) buildPage() fyne.CanvasObject {
 		container.NewVBox(
 			widget.NewLabelWithStyle("Inventory Utilities", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			clicker_checkBox,
-		), // top
-		container.NewHBox(widget.NewLabelWithStyle(
-			"Test Subject",
-			fyne.TextAlignCenter,
-			fyne.TextStyle{Bold: true})), // bottom
+		), //top
+		nil,                   // bottom
 		nil,                   // left
 		nil,                   // right
 		s.setupMacroSection(), // center
@@ -65,10 +66,23 @@ func (s *SettingsView) buildPage() fyne.CanvasObject {
 }
 
 func NewSettingsView(cfg *config.Manager) *SettingsView {
+	savedBinding := cfg.GetSettings().LogoutBinding
 	s := &SettingsView{
 		cfg:                  cfg,
 		scrollClickerFeature: false, // Default state
 		entries:              []*ListEntry{},
+		logoutBinding:        savedBinding,
+	}
+
+	s.logoutBindButton = NewKeybindButton("Click to bind", s.onLogoutBound)
+	s.logoutBindButton.key = savedBinding.Key
+	for _, modifier := range savedBinding.Modifiers {
+		if normalized, ok := helpers.NormalizeModifier(modifier); ok {
+			s.logoutBindButton.modifiers[normalized] = true
+		}
+	}
+	if s.logoutBindButton.key != "" {
+		s.logoutBindButton.updateActiveLabel()
 	}
 
 	s.page = s.buildPage()
@@ -77,6 +91,10 @@ func NewSettingsView(cfg *config.Manager) *SettingsView {
 
 func (s *SettingsView) setupMacroSection() fyne.CanvasObject {
 	macroList := s.buildMacroList()
+	logoutRow := container.NewHBox(
+		s.logoutBindButton,
+		widget.NewLabel("Logout (built-in)"),
+	)
 
 	leftText := widget.NewLabelWithStyle("Macros", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	addBtn := widget.NewButton("Add Cmd", func() {
@@ -87,7 +105,15 @@ func (s *SettingsView) setupMacroSection() fyne.CanvasObject {
 	})
 	header := container.NewBorder(nil, nil, leftText, addBtn, nil)
 
-	return container.NewBorder(header, nil, nil, nil, macroList)
+	macroArea := container.NewBorder(
+		logoutRow, // fixed-height top row
+		nil,
+		nil,
+		nil,
+		macroList, // fills remaining space
+	)
+
+	return container.NewBorder(header, nil, nil, nil, macroArea)
 }
 
 func (s *SettingsView) buildMacroList() fyne.CanvasObject {
@@ -120,25 +146,22 @@ func (s *SettingsView) buildMacroList() fyne.CanvasObject {
 			if len(borderContainer.Objects) < 3 {
 				return
 			}
-
 			bindBtn, ok := borderContainer.Objects[1].(*KeybindButton)
 			if !ok {
 				return
 			}
-
 			entry, ok := borderContainer.Objects[0].(*widget.Entry)
 			if !ok {
 				return
 			}
-
 			remBtn, ok := borderContainer.Objects[2].(*widget.Button)
 			if !ok {
 				return
 			}
-
 			if id < 0 || id >= len(s.entries) {
 				return
 			}
+
 			opt := s.entries[id]
 			if opt == nil || opt.BindBttn == nil || opt.TextEntry == nil {
 				return
@@ -162,6 +185,53 @@ func (s *SettingsView) buildMacroList() fyne.CanvasObject {
 				}
 			}
 			bindBtn.onBound = func(modifiers map[string]bool, key string) {
+				candidateModifiers := make([]string, 0, len(modifiers))
+				for modifier, pressed := range modifiers {
+					if pressed {
+						candidateModifiers = append(candidateModifiers, modifier)
+					}
+				}
+				candidateKey := helpers.MakeLookupKey(candidateModifiers, key)
+
+				for _, other := range s.entries {
+					if other == nil || other == opt || other.BindBttn == nil || other.BindBttn.key == "" {
+						continue
+					}
+
+					existingKey := helpers.MakeLookupKey(
+						other.BindBttn.GetModifiers(),
+						other.BindBttn.key,
+					)
+					if existingKey != candidateKey {
+						continue
+					}
+
+					// Restore this row's previous binding; the attempted one is already on bindBtn.
+					bindBtn.key = opt.BindBttn.key
+					bindBtn.modifiers = make(map[string]bool, len(opt.BindBttn.modifiers))
+					for modifier, pressed := range opt.BindBttn.modifiers {
+						bindBtn.modifiers[modifier] = pressed
+					}
+					if bindBtn.key == "" {
+						bindBtn.SetText("Click to bind")
+					} else {
+						bindBtn.updateActiveLabel()
+					}
+
+					windows := fyne.CurrentApp().Driver().AllWindows()
+					if len(windows) > 0 {
+						dialog.ShowInformation(
+							"Keybind already assigned",
+							"That key combination is already used by another command.",
+							windows[0],
+						)
+						if s.OnStatusChanged != nil {
+							s.OnStatusChanged("Keybind " + candidateKey + " already assigned")
+						}
+					}
+					return
+				}
+
 				if opt.BindBttn != nil {
 					opt.BindBttn.key = key
 					opt.BindBttn.modifiers = modifiers
@@ -174,7 +244,6 @@ func (s *SettingsView) buildMacroList() fyne.CanvasObject {
 					s.notifyCommandChanges()
 				}
 			}
-			// bindBtn.updateActiveLabel()
 
 			// Sync entry
 			entry.OnChanged = nil
@@ -239,7 +308,9 @@ func (s *SettingsView) notifyCommandChanges() {
 			c.SavedMacros = cmds
 		})
 
-		s.OnCommandChanged(cmds)
+		if s.OnCommandChanged != nil {
+			s.OnCommandChanged(cmds)
+		}
 	}
 }
 
@@ -261,4 +332,46 @@ func (s *SettingsView) GetCommandEntries() []ListEntry {
 	}
 
 	return validEntries
+}
+
+func (s *SettingsView) onLogoutBound(modifiers map[string]bool, key string) {
+	modifierNames := make([]string, 0, len(modifiers))
+	for modifier, pressed := range modifiers {
+		if pressed {
+			modifierNames = append(modifierNames, modifier)
+		}
+	}
+
+	candidateKey := helpers.MakeLookupKey(modifierNames, key)
+	for _, entry := range s.entries {
+		if entry == nil || entry.BindBttn == nil || entry.BindBttn.key == "" {
+			continue
+		}
+		existingKey := helpers.MakeLookupKey(entry.BindBttn.GetModifiers(), entry.BindBttn.key)
+		if candidateKey != "" && candidateKey == existingKey {
+			s.logoutBindButton.key = s.logoutBinding.Key
+			s.logoutBindButton.modifiers = make(map[string]bool, len(s.logoutBinding.Modifiers))
+			for _, modifier := range s.logoutBinding.Modifiers {
+				s.logoutBindButton.modifiers[modifier] = true
+			}
+			s.logoutBindButton.updateActiveLabel()
+
+			if s.OnStatusChanged != nil {
+				s.OnStatusChanged("That key combination is already assigned")
+			}
+			return
+		}
+	}
+
+	binding := config.HotkeyBinding{
+		Modifiers: modifierNames,
+		Key:       key,
+	}
+	s.logoutBinding = binding
+	s.cfg.Update(func(cfg *config.AppConfig) {
+		cfg.LogoutBinding = binding
+	})
+	if s.OnLogoutBindingChanged != nil {
+		s.OnLogoutBindingChanged(binding)
+	}
 }

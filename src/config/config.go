@@ -32,6 +32,8 @@ type AppConfig struct {
 	OverlayOpacity       float64
 	SavedMacros          []FlexMacroSettings
 	LogoutBinding        HotkeyBinding
+	LogoutHijack         bool
+	AppUpdateCheck       bool
 }
 
 func defaultConfig() AppConfig {
@@ -40,6 +42,8 @@ func defaultConfig() AppConfig {
 		SelectedModifier:     "",
 		OverlayOpacity:       1.0,
 		SavedMacros:          []FlexMacroSettings{},
+		LogoutHijack:         false,
+		AppUpdateCheck:       true, // TODO: Check to see if this is a good way of doing this, or if it should be in appShell.go
 	}
 }
 

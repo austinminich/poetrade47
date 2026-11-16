@@ -12,9 +12,8 @@ import (
 
 type ActionType string
 type CommandManager struct {
-	mu       sync.RWMutex
-	macros   map[string]FlexMacro
-	builtIns map[string]FlexMacro
+	mu     sync.RWMutex
+	macros map[string]FlexMacro
 }
 
 type FlexMacro struct {
@@ -53,9 +52,6 @@ func (cm *CommandManager) Lookup(lookupKey string) (FlexMacro, bool) {
 	// helpers.DebugLog("Handling input for key '%s'", lookupKey)
 	cm.mu.RLock()
 	cmd, exists := cm.macros[lookupKey]
-	if !exists {
-		cmd, exists = cm.builtIns[lookupKey]
-	}
 	cm.mu.RUnlock()
 
 	if !exists || !cmd.cfg.Enabled {
@@ -158,12 +154,12 @@ func (cm *CommandManager) SetLogoutBinding(binding config.HotkeyBinding) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
-	cm.builtIns = make(map[string]FlexMacro)
+	cm.macros = make(map[string]FlexMacro)
 	if lookupKey == "" {
 		return
 	}
 
-	cm.builtIns[lookupKey] = FlexMacro{
+	cm.macros[lookupKey] = FlexMacro{
 		cfg: config.FlexMacroSettings{
 			Key:       binding.Key,
 			Modifiers: binding.Modifiers,

@@ -14,6 +14,8 @@ import (
 var icon []byte
 var trade47 fyne.App
 
+var version = "dev"
+
 func main() {
 	// fmt.Println("Hello world in Go!") // xD
 	helpers.DebugLog("App started")
@@ -28,7 +30,7 @@ func main() {
 	}()
 
 	trade47 = app.NewWithID("cheesecake47.poetrade")
-	myWindow := trade47.NewWindow("PoE Trade47")
+	myWindow := trade47.NewWindow("PoE Trade47 - v." + version)
 	myWindow.SetMaster()
 	myWindow.Resize(fyne.NewSize(720, 720))
 

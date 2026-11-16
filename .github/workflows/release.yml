@@ -46,6 +46,8 @@ jobs:
         run: go test ./...
 
       - name: Build AppImage
+        env:
+          VERSION: ${{ github.ref_name }}
         run: make linux
 
       - name: Upload AppImage
@@ -78,6 +80,8 @@ jobs:
 
       - name: Test and build Windows executable
         shell: msys2 {0}
+        env:
+          VERSION: ${{ github.ref_name }}
         run: |
           GO_EXE="$(where.exe go | head -n1 | tr -d '\r')"
           if [ -z "$GO_EXE" ]; then

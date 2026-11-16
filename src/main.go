@@ -14,8 +14,6 @@ import (
 var icon []byte
 var trade47 fyne.App
 
-var version = "dev"
-
 func main() {
 	// fmt.Println("Hello world in Go!") // xD
 	helpers.DebugLog("App started")
@@ -72,6 +70,9 @@ func main() {
 		appShell.SetPoEFocused(isPoeFocused)
 	})
 	go StartInputManager(stopInput)
+
+	// Check for updates
+	CheckForUpdates()
 
 	myWindow.ShowAndRun()
 }

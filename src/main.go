@@ -10,7 +10,7 @@ import (
 	"fyne.io/fyne/v2/app"
 )
 
-//go:embed resources/cheesecake47.jpg
+//go:embed resources/cheesecake47.png
 var icon []byte
 var trade47 fyne.App
 
@@ -33,7 +33,7 @@ func main() {
 	myWindow.Resize(fyne.NewSize(720, 720))
 
 	// Load resources
-	iconRes := fyne.NewStaticResource("cheesecake47.jpg", icon)
+	iconRes := fyne.NewStaticResource("cheesecake47.png", icon)
 	trade47.SetIcon(iconRes)
 	myWindow.SetIcon(iconRes)
 

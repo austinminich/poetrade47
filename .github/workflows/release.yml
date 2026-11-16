@@ -52,7 +52,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-appimage
-          path: build/linux/poetrade47-x86_64.AppImage
+          path: build/linux/poetrade47.AppImage
           if-no-files-found: error
 
   windows:
@@ -137,5 +137,5 @@ jobs:
 
           gh release create "$TAG_NAME" \
             "${release_flags[@]}" \
-            release-assets/poetrade47-x86_64.AppImage \
+            release-assets/poetrade47.AppImage \
             release-assets/poetrade47.exe

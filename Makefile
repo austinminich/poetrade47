@@ -13,11 +13,12 @@ all: linux windows
 linux:
 	@echo "--- Building Linux AppImage ---"
 	mkdir -p $(APP_DIR)/usr/bin
+	cp src/resources/cheesecake47.png $(APP_DIR)/cheesecake47.png
 	go build -o $(APP_DIR)/usr/bin/$(APP_NAME) $(APP_PACKAGE)
 	ln -rsf $(APP_DIR)/usr/bin/$(APP_NAME) $(APP_DIR)/AppRun
 	mkdir -p $(BUILD_DIR)/linux
-	ARCH=x86_64 appimagetool $(APP_DIR) $(BUILD_DIR)/linux/$(APP_NAME)-x86_64.AppImage
-	chmod +x $(BUILD_DIR)/linux/$(APP_NAME)-x86_64.AppImage
+	ARCH=x86_64 appimagetool $(APP_DIR) $(BUILD_DIR)/linux/$(APP_NAME).AppImage
+	chmod +x $(BUILD_DIR)/linux/$(APP_NAME).AppImage
 
 # Build Windows Executable
 windows:
@@ -32,3 +33,4 @@ clean:
 	rm -rf squashfs-root
 	rm -f $(APP_DIR)/AppRun
 	rm -f $(APP_DIR)/usr/bin/$(APP_NAME)
+	rm -f $(APP_DIR)/cheesecake47.png
